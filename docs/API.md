@@ -51,16 +51,27 @@ sublime.erase_status('status_key')
 Show a status bar message in sublime text from an error object 
 
 ```Javascript
+var errorHandler = sublime.show_error('Sass')
+
+gulp.task('compile-sass', function (done) {
+	sublime.erase_status('compile-sass')
+
+	return gulp.src(paths.sass)
+		
+		.pipe(sass())
+		
+		// Emits an "end" event so gulp watch doesn't stop 
+		.on('error', errorHandler)
+		
+		.pipe(autoprefixer())
+		.pipe(gulp.dest(paths.sassDest))
 
 ```
 
 
 ### sublime.hide_error 
-Erase a status message 
+Erase a status message (Not yet implemented)
 
-```Javascript
-
-```
 
 
 
