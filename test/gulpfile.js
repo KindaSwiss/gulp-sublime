@@ -13,6 +13,10 @@ var plumber = require('gulp-plumber');
 var gutil = require('gulp-util');
 var sublime = require('../sublime');
 var notify = require('gulp-notify');
+var through = require('through2');
+var notifier = require('node-notifier');
+
+
 
 
 var logError = function(err) {
@@ -21,13 +25,24 @@ var logError = function(err) {
 }
 
 
+
+
 var paths = {
 	'sass': 'sass/**/*.sass',
 	'sassDest': 'stylesheets',
 };
 
 
+
+
 gulp.task('default', ['watch']);
+
+
+
+
+sublime.connect();
+sublime.config(gulp);
+
 
 
 
@@ -37,12 +52,15 @@ gulp.task('default', ['watch']);
  */
 gulp.task('compile-sass--plumber', function (done) {
 
-	// Erase the status message 
-	sublime.erase_status('compile-sass--plumber')
-
 	return gulp.src(paths.sass).
-		pipe(plumber({ errorHandler: sublime.show_error('compile-sass--plumber') })).
-		pipe(notify("Hello Gulp!")).
+
+		pipe(plumber({ 
+			errorHandler: function (err) {
+				sublime.show_error('compile-sass--plumber', err)
+				done();
+			}
+		})).
+
 		pipe(sass({
 			indentedSyntax: true,
 			// onSuccess runs for each file that is successfully compiled. 
@@ -51,7 +69,7 @@ gulp.task('compile-sass--plumber', function (done) {
 				// console.log(file)
 			}
 		})).
-	
+
 		pipe(gulp.dest(paths.sassDest));
 });
 
@@ -61,8 +79,6 @@ gulp.task('compile-sass--plumber', function (done) {
  * not emit an "end" event even though it is being used like a direct error handler. 
  */
 gulp.task('compile-sass--handle-indirect', function (done) {
-
-	sublime.erase_status('compile-sass--handle-indirect')
 
 	return gulp.src(paths.sass).
 		
@@ -86,8 +102,6 @@ gulp.task('compile-sass--handle-indirect', function (done) {
  */
 gulp.task('compile-sass--handle-direct', function (done) {
 
-	sublime.erase_status('compile-sass--handle-direct')
-
 	return gulp.src(paths.sass).
 		
 		pipe(sass({
@@ -105,13 +119,12 @@ gulp.task('watch', function () {
 			paths.sass,
 		],
 		[
-			// 'compile-sass--plumber',
+			'compile-sass--plumber',
 			// 'compile-sass--handle-indirect',
-			'compile-sass--handle-direct',
+			// 'compile-sass--handle-direct',
 		]
 	);
 
-	sublime.connect();
 });
 
 
