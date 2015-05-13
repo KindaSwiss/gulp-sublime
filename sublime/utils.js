@@ -1,18 +1,19 @@
 
 var objectTag = '[object Object]';
 
-var isNumber = function(value) {
-	value = value - 0;
-	return value === value && typeof value === 'number' && isFinite(value);
-}
+var exports = {
+	isNumber: function(value) {
+		value = value - 0;
+		return value === value && typeof value === 'number' && isFinite(value);
+	},
+	isObject: function (value) {
+		return Object.prototype.toString.call(value) === objectTag;
+	},
+	isString: function (value) {
+		return typeof value === 'string';
+	},
+};
 
-var isObject = function (value) {
-	return Object.prototype.toString.call(value) === objectTag;
-}
 
-
-exports.isNumber = isNumber;
-
-exports.isObject = isObject;
-
+module.exports = exports;
 

@@ -144,6 +144,12 @@ var sublime = {
 			this._connection.destroy();
 		}
 	},
+	config: function (gulp) {
+		gulp.on('task_start', function (task) {
+			if (task.task === 'default') { return; }
+			sublime.erase_errors(task.task);
+		});
+	},
 	/**
 	 * Set a status message in Sublime 
 	 * @param {String} id     The id of the status message
@@ -151,8 +157,8 @@ var sublime = {
 	 */
 	set_status: function(id, status) {
 		this._connection.send({
-			command_name: 'update_status', 
-			data: { status_id: id,
+			command_name: 'set_status', 
+			data: { id: id,
 			 		status: status }
 		});
 	},
@@ -185,29 +191,24 @@ var sublime = {
 	 * @param  {Object} args
 	 */
 	run: function (command_name, args) {
+		if ( ! utils.isObject(args)) {
+			throw new Error('Args must be an object');
+		}
 		sublime._connection.send({
 			command_name: command_name,
-			data: args
+			data: args || {}
 		});
 	},
 	/**
-	 * Hide the status message from an error. 
+	 * Hide the gutters, highlighted text lines, and error status messages
 	 *
-	 * If "now" is true, the status message will be erased when the function is called.
-	 * Else a function will be returned theat will erase the status message associated 
-	 * with the id passed
-	 * 
 	 * @param  {String} id  The id of the status message to erase 
-	 * @param {Boolean} now  Whether or not to hide the status message 
-	 *                       when the function is called 
 	 */
-	hide_error: function (id, now) {
-		if (now) {
-			return sublime.erase_status(id);
+	erase_errors: function (id) {
+		if ( ! utils.isString(id)) {
+			throw new Error('ID must be of type String');
 		}
-		return function () {
-			sublime.erase_status(id);
-		};
+		return sublime.run('erase_errors', { id: id });
 	},
 	/**
 	 * Shows an error in Sublime Text's status bar. 
@@ -225,7 +226,7 @@ var sublime = {
 	 * @param  {Error}  err
 	 * @return {String|Function}
 	 */
-	show_error: function(id, err) {
+	show_error: function show_error(id, err) {
 
 		if (typeof id !== 'string') {
 			throw new Error('The id provided is not of type String')
@@ -237,41 +238,65 @@ var sublime = {
 				this.emit('end');
 			}
 
-			var line = err.line || err.lineNumber;
-			var file = err.file || err.fileName;
+			var line = (err.line || err.lineNumber) - 1;
 
 			// Use the plugin name (provided by plumber) or the id, 
 			// if the plugin name does not exist use the id 
-			var pluginName = err.plugin || show_error.id;
+			var pluginName = err.plugin || id;
+
+			var file = err.file || err.fileName;
+
+			var basename = path.basename(file);
+			var dirname = path.dirname(file);
+			var ext = path.extname(file);
+			var rootName = path.basename(file, ext);
+
+			var error = {
+				plugin_name: pluginName,
+				
+				// The directory path (excludes the basename)
+				file_path: dirname,
+				file_dir: dirname,
+				
+				// The root name of the file with the extension 
+				file_name: basename,
+				basename: basename,
+
+				// The root name of the file (without the extension)
+				file_base_name: rootName,
+				root_name: rootName,
+				
+				// The file extension 
+				file_extension: ext,
+				file_ext: ext,
+
+				// The full file path 
+				file: file,
+				
+				line: line,
+				message: err.message.split(/\n/)[0],
+			};
 			
-			'gulp-sass error, Line 9, File: _error.sass';
-
-			var status = util.format('%s error, Line %s, File: %s', 
-				pluginName, line, path.basename(file))
-
-			// Set a status bar message 
-			sublime.set_status(id, status);
+			
+			sublime.run('set_error_status', {
+				id: id,
+				error: error
+			});
 
 			sublime.run('show_popup', {
 				file_name: file, 
 				line: line,
-				error: {
-					plugin_name: pluginName,
-					file: file,
-					line: line,
-					message: err.message.split(/\n/)[0],
-				},
-				message: util.format('Line %d; \n%s', line, err.message.split(/\n/)[0]) });
+				error: error
+			});
 
-			// sublime.run('highlight_text_line', {
-			// 	id: id,
-			// 	file_name: file, 
-			// 	line: line, });
+			sublime.run('highlight_text_line', {
+				id: id,
+				file_name: file, 
+				line: line });
 			
-			// sublime.run('gutter_line', { 
-			// 	id: id, file_name: file, line: line });
+			sublime.run('gutter_line', { 
+				id: id, file_name: file, line: line });
 			
-			return status;
 		}
 
 		if (typeof err === 'object') {
