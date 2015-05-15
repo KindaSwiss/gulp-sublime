@@ -111,7 +111,6 @@ var sublime = {
 	 * The options may contain a port and socket event handlers. If no port is defined, 
 	 * the default port will be used. 
 	 * 
-	 * 
 	 * @param {Object} options
 	 * @param {Funtion} onConnectHandler
 	 */
@@ -145,9 +144,11 @@ var sublime = {
 		}
 	},
 	config: function (gulp) {
-		gulp.on('task_start', function (task) {
-			if (task.task === 'default') { return; }
-			sublime.erase_errors(task.task);
+		sublime.connect(function () {
+			gulp.on('task_start', function (task) {
+				if (task.task === 'default') { return; }
+				sublime.erase_errors(task.task);
+			});
 		});
 	},
 	/**
@@ -156,23 +157,16 @@ var sublime = {
 	 * @param {String} status The message that will be shown 
 	 */
 	set_status: function(id, status) {
-		this._connection.send({
-			command_name: 'set_status', 
-			data: { id: id,
-			 		status: status }
-		});
+		sublime.run('set_status', 
+			{ id: id, status: status }, { views: '<all>' });
 	},
 	/**
 	 * Erase a status message in Sublime Text's status bar 
 	 * @param  {String} id The id of the status message
 	 */
 	erase_status: function (id) {
-		this._connection.send({
-			command_name: 'erase_status',
-			data: {
-				status_id: id
-			}
-		})
+		sublime.run('erase_status', 
+			{ id: id }, { views: '<all>' });
 	},
 	/**
 	 * Run a Sublime Text command 
@@ -182,21 +176,31 @@ var sublime = {
 	run_command: function (command_name, args) {
 		// sublime._connection.send({
 		// 	command: command_name,
-		// 	args: args
+		// 	args: args,
+		// 
+		// 	sublime: true,
+		// 
+		//  windows: [?]
+		// 
+		// 	views: [file_name],
 		// });
 	},
 	/**
 	 * Run a gulp command in Sublime Text
-	 * @param  {String} command_name
-	 * @param  {Object} args
+	 * @param  {String} command_name  The command to run 
+	 * @param  {Object} args          The arguments to pass to the command 
+	 * @param  {Object} init_args     The command __init__ arguments 
 	 */
-	run: function (command_name, args) {
-		if ( ! utils.isObject(args)) {
+	run: function (command_name, args, init_args) {
+		if ( ! utils.isObject(args) ||  ! utils.isObject(init_args)) {
 			throw new Error('Args must be an object');
 		}
 		sublime._connection.send({
 			command_name: command_name,
-			data: args || {}
+			data: {
+				args: args || {},
+				init_args: init_args
+			}
 		});
 	},
 	/**
@@ -208,106 +212,36 @@ var sublime = {
 		if ( ! utils.isString(id)) {
 			throw new Error('ID must be of type String');
 		}
-		return sublime.run('erase_errors', { id: id });
+		return sublime.run('erase_errors', { id: id }, { views: '<all>' });
 	},
 	/**
-	 * Shows an error in Sublime Text's status bar. 
-	 * 
-	 * If only an id is passed, show_error will return a function that will set an error status 
-	 * message in Sublime's status bar. The returned function is meant to be used as a direct 
-	 * error handler and will emit an "end" event so that gulp.watch doesn't stop. 
-	 * 
-	 * If an id and error is passed, it will show the error in Sublime's status bar and will 
-	 * return the error status message. Using show_error in this way does not trigger an 
-	 * "end" event. To manually trigger the "end" event, use the "done" callback that is passed 
-	 * to each task.
+	 * Runs the gulp command "show_error". The command will do several things 
+	 * based on if they have been enabled in the package settings. 
+	 *
+	 * - Show a popup message in a view with the same open file that caused the error
+	 * - Show a gutter icon next to the line the caused the error 
+	 * - Show an error message in the status bar 
+	 * - Scroll to the line where the error occured 
 	 * 
 	 * @param  {String} id   The id to associate with the status message
-	 * @param  {Error}  err
-	 * @return {String|Function}
+	 * @param  {Error}  err  The gulp error object 
 	 */
 	show_error: function show_error(id, err) {
 
 		if (typeof id !== 'string') {
 			throw new Error('The id provided is not of type String')
 		}
-
-		var errorHandler = function(err) {
-			if (typeof this=== 'object' && typeof this.emit === 'function') {
-				// Emit 'end' so gulp.watch doesn't stop 
-				this.emit('end');
-			}
-
-			var line = (err.line || err.lineNumber) - 1;
-
-			// Use the plugin name (provided by plumber) or the id, 
-			// if the plugin name does not exist use the id 
-			var pluginName = err.plugin || id;
-
-			var file = err.file || err.fileName;
-
-			var basename = path.basename(file);
-			var dirname = path.dirname(file);
-			var ext = path.extname(file);
-			var rootName = path.basename(file, ext);
-
-			var error = {
-				plugin_name: pluginName,
-				
-				// The directory path (excludes the basename)
-				file_path: dirname,
-				file_dir: dirname,
-				
-				// The root name of the file with the extension 
-				file_name: basename,
-				basename: basename,
-
-				// The root name of the file (without the extension)
-				file_base_name: rootName,
-				root_name: rootName,
-				
-				// The file extension 
-				file_extension: ext,
-				file_ext: ext,
-
-				// The full file path 
-				file: file,
-				
-				line: line,
-				message: err.message.split(/\n/)[0],
-			};
-			
-			
-			sublime.run('set_error_status', {
-				id: id,
-				error: error
-			});
-
-			sublime.run('show_popup', {
-				file_name: file, 
-				line: line,
-				error: error
-			});
-
-			sublime.run('highlight_text_line', {
-				id: id,
-				file_name: file, 
-				line: line });
-			
-			sublime.run('gutter_line', { 
-				id: id, file_name: file, line: line });
-			
+		if ( ! utils.isObject(err)) {
+			throw new Error('Invalid error object');
 		}
 
-		if (typeof err === 'object') {
-			return errorHandler(err);
-		}
-
-		errorHandler.id = id;
+		var error = utils.normalizeError(err);
+		var file = error.file;
 		
-		return errorHandler;
+		sublime.run('show_error', { id: id, error: error }, { views: [file] })
 	},
 };
+
 
 module.exports = sublime;
 
