@@ -2,72 +2,55 @@
 
 This is meant to be paired with [sublimegulpserver](https://github.com/KindaSwiss/sublimegulpserver). 
 
-This is a tool I use for showing error messages from gulp files in Sublime Text 3. For example, if a Sass compilation error occurs, the file basename and line number will show in the status bar of each tab. 
+This is a tool I use for showing error messages from gulp files in Sublime Text 3. It has a few features. 
 
+It can: 
+- Display an error message in the status bar showing the file, line number, and plugin that caused the error. 
+- Scroll the line where the error occured if the file is open 
+- Show a gutter icon next to the line where the error occured 
+- Show a popup message, which is simple new feature as of ST3 3083.  
 
+Any of these things can be enabled/disabled in the package settings. The status bar and popup messages format can be customized as well. 
 
-
-## Example uses: 
-
-There are two ways to send a status bar error message:
-
-- Use the function returned from `sublime.show_error` to handler the error directly. The function returned will emit an `end` event so that gulp watch doesn't stop. 
-
-- Pass the error object as a second argument to `sublime.show_error`. No `end` event is emitted when used this way, so `done` can be called manually. 
-
-
+## Example usage 
 
 ```Javascript
+var gulp = require('gulp');
+var sass = require('gulp-sass');
+var sublime = require('sublime')
 
-// The string passed is used as the key for the status bar message 
-var errorHandler = sublime.show_error('compile-sass');
-
-gulp.task('compile-sass', function (done) {
-	
-	// Have to erase the status bar message every time the task 
-	// is run or else previous error messages will remain on the status bar
-	sublime.erase_status('compile-sass')
-	
-	return gulp.src(paths.sass)
-		
-		.pipe(sass())
-		
-		// Emits an "end" event so gulp watch doesn't stop 
-		.on('error', errorHandler)
-		
-		.pipe(autoprefixer())
-
-		.on('error', function (err) {
-			// Does not emit the "end" event, done can be called manually 
-			var status = sublime.show_error('compile-sass', err);
-			console.log(status)
-			done();
-		})
-
-		.pipe(gulp.dest(paths.sassDest));
+sublime.config({
+	gulp: gulp, 
+	port: {Integer} // optional 
 });
-
-```
-
-
-
-An example using plumber 
-
-```Javascript
 
 gulp.task('compile-sass--plumber', function () {
-
-	sublime.erase_status('compile-sass--plumber')
-
+	
 	return gulp.src(paths.sass)
-		.pipe(plumber({ errorHandler: sublime.show_error('compile-sass--plumber') }))
+		.pipe(plumber({ 
+			errorHandler: function (err) {
+				
+				// The first argument should be the task name 
+				sublime.show_error('compile-sass--plumber', err);
+
+				// Keep gulp watch going by calling done or this.emit('end')
+				done();
+			} 
+		}))
 		
 		.pipe(sass())
-
+		
 		.pipe(gulp.dest(paths.sassDest));
 });
 
 ```
+
+`sublime.config` is called and is passed the gulp object. This adds a listener to gulp's `task_start` event so that error gutter icons, and status messages are automatically removed. A port may also be specified, but must also must be changed in sublimegulpserver package settings. 
+
+The first argument to `sublime.show_error` is the key to associate with the error, which must be the task name. The second argument should be an error object. 
+
+
+
 
 
 
