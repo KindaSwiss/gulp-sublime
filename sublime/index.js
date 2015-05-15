@@ -143,7 +143,11 @@ var sublime = {
 			this._connection.destroy();
 		}
 	},
-	config: function (gulp) {
+	config: function (options) {
+		var gulp = options.gulp;
+		if (utils.isNumber(options.port)) {
+			PORT = options.port;
+		}
 		sublime.connect(function () {
 			gulp.on('task_start', function (task) {
 				if (task.task === 'default') { return; }

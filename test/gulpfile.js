@@ -40,7 +40,9 @@ gulp.task('default', ['watch']);
 
 
 
-sublime.config(gulp);
+sublime.config({
+	gulp: gulp
+});
 
 
 
