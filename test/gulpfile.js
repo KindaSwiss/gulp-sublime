@@ -40,15 +40,13 @@ gulp.task('default', ['watch']);
 
 
 
-sublime.connect();
 sublime.config(gulp);
 
 
 
 
 /**
- * Handle the error with plumber. sublime.show_error('compile-sass--plumber') 
- * should return a function that will handle the error 
+ * Handle the error with plumber. 
  */
 gulp.task('compile-sass--plumber', function (done) {
 
@@ -75,10 +73,9 @@ gulp.task('compile-sass--plumber', function (done) {
 
 
 /**
- * Handle the error with sublime.show_error indirectly. The function returned should 
- * not emit an "end" event even though it is being used like a direct error handler. 
+ * Handle the error normally  
  */
-gulp.task('compile-sass--handle-indirect', function (done) {
+gulp.task('compile-sass', function (done) {
 
 	return gulp.src(paths.sass).
 		
@@ -86,28 +83,10 @@ gulp.task('compile-sass--handle-indirect', function (done) {
 			indentedSyntax: true,
 		})).
 		on('error', function (err) {
-			// Should not emit an "end" event, which means done can be called manually 
-			sublime.show_error('compile-sass--handle-indirect', err);
+			sublime.show_error('compile-sass', err);
+			// Must use this.emit('end') or done() to keep gulp watch going 
 			done();
 		}).
-	
-		pipe(gulp.dest(paths.sassDest));
-});
-
-
-/**
- * Handle the error directly with the function returned from sublime.show_error.
- * The function should emit an "end" event since the "this" value is bound to the 
- * returned function.  
- */
-gulp.task('compile-sass--handle-direct', function (done) {
-
-	return gulp.src(paths.sass).
-		
-		pipe(sass({
-			indentedSyntax: true,
-		})).
-		on('error', sublime.show_error('compile-sass--handle-direct')).
 	
 		pipe(gulp.dest(paths.sassDest));
 });
@@ -120,8 +99,7 @@ gulp.task('watch', function () {
 		],
 		[
 			'compile-sass--plumber',
-			// 'compile-sass--handle-indirect',
-			// 'compile-sass--handle-direct',
+			// 'compile-sass',
 		]
 	);
 
