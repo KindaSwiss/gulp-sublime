@@ -226,59 +226,6 @@ describe('sublime', function() {
 				.that.is.an('function');
 		});
 
-		it('Should return a function that returns a string with the plugin name, line number, and file name from an error', function (done) {
-
-			sublime.connect(function () {
-				
-				var gulpError = {
-					message: 'contents of namespaced properties must result in style declarations only\nBacktrace:\n\tsass/error.sass:9',
-					fileName: 'Packages/Customizations/test/sass/error.sass',
-					lineNumber: 9,
-					showStack: false,
-					showProperties: true,
-					plugin: 'gulp-sass',
-				};
-
-				var gulpError2 = {
-					message: 'contents of namespaced properties must result in style declarations only\nBacktrace:\n\tsass/error.sass:9',
-					file: 'Packages/Customizations/test/sass/error.sass',
-					line: 9,
-					showStack: false,
-					showProperties: true,
-					plugin: 'gulp-sass',
-				};
-
-				var correctResult = util.format('%s error, Line %s, File: %s', 
-					gulpError.plugin, gulpError.lineNumber, path.basename(gulpError.fileName));
-
-				var errorHandler = sublime.show_error('Sass').bind({ emit: function () {} });
-
-				var status = errorHandler(gulpError);
-				var status2 = errorHandler(gulpError2)
-
-				console.log(correctResult)
-
-				expect(status)
-					.to.equal(correctResult);
-
-				expect(status2)
-					.to.equal(correctResult);
-
-				sublime.disconnect(function () {
-					done();
-				});
-			});
-
-		});
-
-		it('Should return a function with an id property equal to the string passed to it', function () {
-			var id = 'Sass';
-			var errorHandler = sublime.show_error(id);
-			expect(errorHandler)
-				.to.have.property('id')
-				.that.equals(id);
-		});
-
 	}); // #show_error
 
 }); // sublime
