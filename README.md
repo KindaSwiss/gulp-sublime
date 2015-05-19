@@ -24,7 +24,7 @@ sublime.config({
 	port: {Integer} // optional 
 });
 
-gulp.task('compile-sass--plumber', function () {
+gulp.task('compile-sass--plumber', function (done) {
 	
 	return gulp.src(paths.sass)
 		.pipe(plumber({ 
@@ -45,7 +45,7 @@ gulp.task('compile-sass--plumber', function () {
 
 ```
 
-`sublime.config` is called and is passed the gulp object. This adds a listener to gulp's `task_start` event so that error gutter icons, and status messages are automatically removed. A port may also be specified, but must also must be changed in sublimegulpserver package settings. 
+In the above example, `sublime.config` is called and is passed the gulp object. The purpose of this is to add a listener to gulp's task_start event so that error gutter icons, and status messages are removed. A port may also be specified, but must also must be changed in sublimegulpserver package settings. 
 
 The first argument to `sublime.show_error` is the key to associate with the error, which must be the task name. The second argument should be an error object. 
 

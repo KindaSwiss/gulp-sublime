@@ -3,74 +3,237 @@
 ## API
 
 
-### sublime.connect
+### sublime.connect(handler)
 Connect to the server 
-
 ```Javascript
-sublime.connect(onConnectHandler)
+sublime.connect(function () {
+	// 
+});
 ```
 
+#### handler
 
-### sublime.disconnect
+Type: `Function`
+
+A function to listen to the `connect` event of the socket. 
+
+
+<br>
+
+
+### sublime.disconnect(handler)
+
 Disconnect from the server 
 
 ```Javascript
-sublime.disconnect(onDisconnectHandler)
+sublime.disconnect(function () {
+	// 
+});
+```
+
+#### handler
+
+Type: `Function`
+
+A function to listen to the `close` event of the socket. 
+
+<br>
+
+
+
+### sublime.run(command_name, args, init_args)
+
+Run a gulp command
+
+```Javascript
+sublime.run('set_status', { message: 'Delicious apple cider' }, { views: [file] })
+```
+
+#### command_name
+
+Type: `String`
+
+The name of the command to run 
+
+#### args
+
+Type: `Object`
+
+The arguments to pass to the command
+
+#### init_args
+
+Type: `Object`
+
+The arguments to pass to the command's \_\_init\_\_ function. Possible arguments are `views` which may be '&lt;all&gt;' for all views or a array of file names. The file names will be used to match views with the same open file. 
+
+
+
+
+<br>
+
+
+### sublime.set_status(id, message)
+Sets a status bar message in *all* views. 
+
+```Javascript
+sublime.set_status('Sass', 'Compiled!')
 ```
 
 
-### sublime.run
-Run a gulp command 
+#### id
+
+Type: `String`
+
+An ID to associate with the status message. Using the same status key will overwrite the previous status bar message. 
+
+#### message
+
+Type: `String`
+
+The message to show in the status bar. 
+
+
+
+
+<br>
+
+
+### sublime.erase_status(id)
+
+Erase a status bar message from *all* views. 
 
 ```Javascript
-sublime.run('set_status', { message: 'Delicious apple cider' })
+sublime.erase_status('Sass')
 ```
 
 
-### sublime.run_command 
-Run a Sublime Text command (Not yet implemented)
+#### id
+
+Type: `String`
+
+The ID of the status bar message to be removed 
 
 
-### sublime.set_status
-Set a status bar message. Using the same status key will overwrite the previous status bar message. 
-
-```Javascript
-sublime.set_status('unique_status_key', 'Status message')
-```
+<br>
 
 
-### sublime.erase_status
-Erase a status bar message. 
 
-```Javascript
-sublime.erase_status('status_key')
-```
+### sublime.show_error(id, err)
 
-
-### sublime.show_error
-Show a status bar message in sublime text from an error object 
+Shows a status bar error message, an error popup message, and a gutter icon next to the line that caused the error (Any can be turned of in package settings). 
 
 ```Javascript
-var errorHandler = sublime.show_error('Sass')
-
 gulp.task('compile-sass', function (done) {
 	sublime.erase_status('compile-sass')
-
+	
+	// Must return the stream
 	return gulp.src(paths.sass)
 		
 		.pipe(sass())
 		
-		// Emits an "end" event so gulp watch doesn't stop 
-		.on('error', errorHandler)
+		.on('error', function (err) {
+			sublime.show_error('Sass', err);
+
+			// Call done or this.emit('end') to keep the watch going 
+			done();
+		})
 		
 		.pipe(autoprefixer())
 		.pipe(gulp.dest(paths.sassDest))
 
 ```
 
+#### id
 
-### sublime.hide_error 
-Erase a status message (Not yet implemented)
+Type: `String`
+
+The ID to associate with the error gutter icons and status messages 
+
+#### err
+
+Type: `Object`
+
+The error object 
+
+
+
+
+<br>
+
+### sublime.config(options)
+
+When called, the socket will try to connect. Passing in the gulp option will add a listener to gulp's `task_start` event so that errors will be automatically removed. If it is not passed, `sublime.erase_errors` will have to be called at the start of each task. 
+
+```Javascript
+var gulp = require('gulp');
+var sublime = require('sublime');
+sublime.config({ gulp: gulp, port: 12345 })
+```
+
+#### options
+
+Type: `Object`
+
+#### options.gulp
+
+Type: `Object`
+
+The gulp object 
+
+#### options.port (optional)
+
+Type: `Integer`
+
+The port to connect to Sublime on.
+
+
+
+
+<br>
+
+### sublime.reporter(id)
+
+A reporter meant solely for JSHint. The when run, it will open a new tab in Sublime with the results appearing and functioning the same as "Find in Files" results. If the tab has already been created, the results will be updated. The string passed to `sublime.reporter` will be used to identify the tab. 
+
+```Javascript
+gulp.task('js-hint', function (done) {
+	return gulp.src(paths.js).
+		pipe(jshint()).
+
+		pipe(sublime.reporter('jshint')).
+
+		// For some reason sublime.reporter is not called when called 
+		// when put after jshint.reporter, so it must be put first 
+
+		pipe(jshint.reporter('jshint-stylish'));
+});
+```
+
+### id
+
+Type: `String`
+
+The ID to associate with the reporter. The ID is used to identify a view so that only one is used per report. 
+
+
+
+
+<br>
+
+### sublime.erase_errors(id)
+
+Remove gutter icons and status messages associated with errors. This should not need to be used when calling `sublime.config({ gulp: gulp })`. 
+
+```Javascript
+sublime.erase_errors('Sass')
+```
+
+#### id 
+
+Type: `String`
+
+The ID associated with the errors, which should be the task name. 
 
 
 

@@ -2,7 +2,7 @@
 /*
 	Note: Run the tests with server in Sublime Text running 
  */
-var sinon = require('sinon');
+// var sinon = require('sinon');
 var assert = require('chai').assert;
 var expect = require('chai').expect;
 var util = require('util');
@@ -12,6 +12,7 @@ var path = require('path');
 var sublime = require('../sublime')
 var utils = require('../sublime/utils');
 var sockets = require('../sublime/socket');
+var List = require('../sublime/lib/list');
 
 var PORT = 30048;
 
@@ -20,20 +21,38 @@ var PORT = 30048;
 
 describe('utils', function() {
 
-	describe('#isNumber', function () {
-		it('Should return if a value is a number', function () {
-			expect(utils.isNumber('nope')).to.equal(false)
-			expect(utils.isNumber(NaN)).to.equal(false)
-			expect(utils.isNumber(Infinity)).to.equal(false)
-			
-			expect(utils.isNumber('')).to.equal(true)
-			expect(utils.isNumber(0)).to.equal(true)
-			expect(utils.isNumber(1)).to.equal(true)
+	describe('#all', function () {
+
+		it('Should return if all values passed are truthy', function () {
+
+			expect(utils.all([true, 1, {}, []])).to.equal(true)
+			expect(utils.all([0, true, 1, {}, []])).to.equal(false)
+			expect(utils.all(['', true, 1, {}, []])).to.equal(false)
+			expect(utils.all([false, true, 1, {}, []])).to.equal(false)
+			expect(utils.all([false])).to.equal(false)
 
 		});
+
+	});
+
+	describe('#any', function () {
+
+		it('Should return if any of the values passed are truthy', function () {
+
+			expect(utils.any([true, false])).to.equal(true)
+			expect(utils.any([1, false, '', null, undefined])).to.equal(true)
+			expect(utils.any([{}, false, '', null, undefined])).to.equal(true)
+			expect(utils.any([[], false, '', null, undefined])).to.equal(true)
+
+			expect(utils.any([false, '', null, undefined])).to.equal(false)
+			expect(utils.any([false])).to.equal(false)
+
+		});
+
 	});
 
 });
+
 
 
 

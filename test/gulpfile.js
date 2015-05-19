@@ -15,6 +15,7 @@ var sublime = require('../sublime');
 var notify = require('gulp-notify');
 var through = require('through2');
 var notifier = require('node-notifier');
+var jshint = require('gulp-jshint');
 
 
 
@@ -30,6 +31,10 @@ var logError = function(err) {
 var paths = {
 	'sass': 'sass/**/*.sass',
 	'sassDest': 'stylesheets',
+	'js': [
+		'../sublime/**/*.js',
+		'!../sublime/node_modules/**/*.js',
+	]
 };
 
 
@@ -74,6 +79,26 @@ gulp.task('compile-sass--plumber', function (done) {
 });
 
 
+
+
+gulp.task('js-hint', function (done) {
+	return gulp.src(paths.js).
+		pipe(plumber({
+			errorHandler: function () {
+				this.emit('end');
+			}
+		})).
+		pipe(jshint()).
+		pipe(sublime.reporter('jshint')).
+
+		// For some reason sublime.reporter is not called when 
+		pipe(jshint.reporter('jshint-stylish'));
+});
+
+
+
+
+
 /**
  * Handle the error normally  
  */
@@ -94,6 +119,16 @@ gulp.task('compile-sass', function (done) {
 });
 
 
+
+
+
+
+
+
+
+
+
+
 gulp.task('watch', function () {
 
 	var watcher = gulp.watch([
@@ -105,6 +140,13 @@ gulp.task('watch', function () {
 		]
 	);
 
+	var watcher = gulp.watch([
+			paths.js,
+		],
+		[
+			'js-hint'
+		]
+	);
 });
 
 

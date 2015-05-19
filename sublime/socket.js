@@ -1,7 +1,9 @@
 'use strict';
 
 var net = require('net');
-var utils = require('./utils')
+var util = require('util');
+var utils = require('./utils');
+
 
 
 
@@ -10,8 +12,9 @@ var END_OF_MESSAGE = '\n';
 
 
 
-function socket_send(data) {
-	return this.write(JSON.stringify(data) + END_OF_MESSAGE);
+var socket_send = function(data) {
+	var message = JSON.stringify(data);
+	return this.write(message + END_OF_MESSAGE);
 };
 
 
@@ -22,14 +25,14 @@ function socket_send(data) {
  * @param {Object}   options 
  * @param {Function} onConnectHandler 
  */
-function createSocket(options, onConnectHandler) {
+var createSocket = function(options, onConnectHandler) {
 	if (typeof options !== 'object') {
 		throw new Error('Socket options were not specified');
 	}
 
 	var port = Number(options.port);
 
-	if ( ! utils.isNumber(port)) {
+	if ( ! util.isNumber(port)) {
 		throw new Error('The port specified is invalid: ' + port);
 	}
 
