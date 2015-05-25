@@ -10,7 +10,6 @@ var path = require('path');
 
 
 var sublime = require('../sublime')
-var utils = require('../sublime/utils');
 var sockets = require('../sublime/socket');
 var List = require('../sublime/lib/list');
 
@@ -18,40 +17,6 @@ var PORT = 30048;
 
 
 
-
-describe('utils', function() {
-
-	describe('#all', function () {
-
-		it('Should return if all values passed are truthy', function () {
-
-			expect(utils.all([true, 1, {}, []])).to.equal(true)
-			expect(utils.all([0, true, 1, {}, []])).to.equal(false)
-			expect(utils.all(['', true, 1, {}, []])).to.equal(false)
-			expect(utils.all([false, true, 1, {}, []])).to.equal(false)
-			expect(utils.all([false])).to.equal(false)
-
-		});
-
-	});
-
-	describe('#any', function () {
-
-		it('Should return if any of the values passed are truthy', function () {
-
-			expect(utils.any([true, false])).to.equal(true)
-			expect(utils.any([1, false, '', null, undefined])).to.equal(true)
-			expect(utils.any([{}, false, '', null, undefined])).to.equal(true)
-			expect(utils.any([[], false, '', null, undefined])).to.equal(true)
-
-			expect(utils.any([false, '', null, undefined])).to.equal(false)
-			expect(utils.any([false])).to.equal(false)
-
-		});
-
-	});
-
-});
 
 
 
