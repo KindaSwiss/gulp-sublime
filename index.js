@@ -236,11 +236,9 @@ var sublime = {
 				sublime.erase_errors(task.task);
 				currentTask = task.task;
 				commandQueue = [];
-				console.log(task);
 			});
 			gulp.on('task_stop', function (task) {
 				currentTask = null;
-				console.log('Task stopped, commands queued:', commandQueue.length);
 				_.each(commandQueue, function (command) {
 					sublime._connection.send(command);
 				});

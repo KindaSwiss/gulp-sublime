@@ -5,32 +5,24 @@
 // var sinon = require('sinon');
 var assert = require('chai').assert;
 var expect = require('chai').expect;
-var util = require('util');
 var path = require('path');
 
 
-var sublime = require('../sublime')
-var sockets = require('../sublime/socket');
+var sublime = require('../index')
+var sockets = require('../socket');
 
 var PORT = 30048;
 
 
 
 
-
-
-
-
-
 describe('socket', function() {
-	var handshake = { "id": "gulp", "action": -1 };
+	var handshake = { "id": "gulp" };
 
 	var socketEvents = {
 		close: function onSocketClosed() {
-			// gutil.log('Connection closed');
 		},
 		error: function onSocketError() {
-			// gutil.log('Socket error')
 			this.destroy();
 		},
 		connect: function onSocketConnected() {
@@ -38,7 +30,6 @@ describe('socket', function() {
 			this.send(handshake);
 		},
 		data: function onSocketReceived(data) {
-			// var data = json.loads(data.toString());
 		}
 	}
 
