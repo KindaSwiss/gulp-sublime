@@ -6,16 +6,16 @@ var path = require('path');
 var mapStream = require('map-stream');
 var gutil = require('gulp-util');
 
-var utils = require('./utils');
-var make_command = utils.make_command;
+var make_command = require('./utils').make_command;
+var normalizeError = require('./utils').normalizeError;
 
 var createSocket = require('./socket').createSocket;
-var List = require('./lib/list');
+var _ = require('lodash');
+var DEV = false;
 
 
 
-
-var PLUGIN_NAME = 'SublimeJS';
+var PLUGIN_NAME = 'gulp-sublime';
 
 
 
@@ -110,9 +110,9 @@ var socketEventHandlers = {
  * The commands are sent when a task finishes and is reset 
  * when a task is run. 
  * 
- * @type {List}
+ * @type {Array}
  */
-var commandQueue = List();
+var commandQueue = [];
 
 
 
@@ -131,9 +131,15 @@ var sublime = {
 	_connection: null,
 	_tries: 0,
 	connected: false,
+
+
+
+
 	/**
 	 * Reconnect to sublime server 
-	 * @param {Function} onConnectHandler
+	 * 
+	 * @param  {Function} onConnectHandler
+	 * @return {void}
 	 */
 	_reconnect: function (onConnectHandler) {
 		this._tries++;
@@ -148,17 +154,28 @@ var sublime = {
 			}, onConnectHandler);
 		}.bind(this), RECONNECT_TIMEOUT);
 	},
+
+
+
+
 	/**
 	 * Connect the server to sublime 
 	 *
 	 * The options may contain a port and socket event handlers. If no port is defined, 
 	 * the default port will be used. 
 	 * 
-	 * @param {Object} options
-	 * @param {Funtion} onConnectHandler
+	 * @param  {Object}  options
+	 * @param  {Funtion} onConnectHandler
+	 * @return {void}
 	 */
 	connect: function (options, onConnectHandler) {
-		var port = typeof options === 'object' && util.isNumber(options.port) ? options.port : PORT;
+		var err, 
+			options = options || {},
+			port = PORT;
+		
+		if (_.isFinite(options.port)) {
+			port = options.port;
+		}
 		
 		if (this._connection) {
 			this._connection.destroy();
@@ -174,9 +191,16 @@ var sublime = {
 			on: socketEventHandlers
 		}, onConnectHandler);
 	},
+
+
+
+
 	/**
-	 * Disconnect the socket from Sublime Text's server 
+	 * Disconnect the socket from Sublime Text's server. 
+	 * The callback passed is only used once. 
+	 * 
 	 * @param  {Function} onDisconnectHandler
+	 * @return {void}
 	 */
 	disconnect: function (onDisconnectHandler) {
 		if (this._connection) {
@@ -186,65 +210,108 @@ var sublime = {
 			this._connection.destroy();
 		}
 	},
+
+
+
+	/**
+	 * Configure the sublime module 
+	 * 
+	 * @param  {Object}  options
+	 * @param  {Integer} options.port
+	 * @param  {Object}  options.gulp
+	 * @return {void}
+	 */
 	config: function (options) {
+		options = options || {};
 		var gulp = options.gulp;
-		if (util.isNumber(options.port)) {
+		module.exports.DEV = DEV !!options.dev || false;
+		
+		if (_.isFinite(options.port)) {
 			PORT = options.port;
 		}
+
 		sublime.connect(function () {
 			gulp.on('task_start', function (task) {
 				if (task.task === 'default') { return; }
 				sublime.erase_errors(task.task);
 				currentTask = task.task;
-				commandQueue = List();
+				commandQueue = [];
 				console.log(task);
 			});
 			gulp.on('task_stop', function (task) {
 				currentTask = null;
 				console.log('Task stopped, commands queued:', commandQueue.length);
-				commandQueue.each(function (command) {
+				_.each(commandQueue, function (command) {
 					sublime._connection.send(command);
 				});
 			});
 		});
 	},
+
+
+
+
 	/**
 	 * Set a status message in Sublime 
-	 * @param {String} id     The id of the status message
-	 * @param {String} status The message that will be shown 
+	 * 
+	 * @param  {String} id     The id of the status message
+	 * @param  {String} status The message that will be shown 
+	 * @return {void}
 	 */
 	set_status: function(id, status) {
 		sublime.run('set_status', 
 			{ id: id, status: status }, { views: '<all>' });
 	},
+
+
+
+
 	/**
 	 * Erase a status message in Sublime Text's status bar 
+	 * 
 	 * @param  {String} id The id of the status message
 	 */
 	erase_status: function (id) {
 		sublime.run('erase_status', 
 			{ id: id }, { views: '<all>' });
 	},
+
+
+
+
 	/**
 	 * Run a gulp command in Sublime Text
+	 * 
 	 * @param  {String} command_name  The command to run 
 	 * @param  {Object} args          The arguments to pass to the command 
 	 * @param  {Object} init_args     The command __init__ arguments 
+	 * @return {void}
 	 */
 	run: function (command_name, args, init_args) {
 		sublime._connection.send(make_command(command_name, args, init_args));
 	},
+
+
+
+
 	/**
 	 * Hide the gutters, highlighted text lines, and error status messages
 	 *
 	 * @param  {String} id  The id of the status message to erase 
+	 * @return {void}
 	 */
 	erase_errors: function (id) {
+		var err;
 		if ( ! util.isString(id)) {
-			throw new Error('The ID passed is not of type String');
+			err = new Error('The ID passed is not of type String');
+			throw err;
 		}
-		return sublime.run('erase_errors', { id: id }, { views: '<all>' });
+		sublime.run('erase_errors', { id: id }, { views: '<all>' });
 	},
+
+
+
+
 	/**
 	 * Runs the gulp command "show_error". The command will do several things 
 	 * based on if they have been enabled in the package settings. 
@@ -256,23 +323,29 @@ var sublime = {
 	 * 
 	 * @param  {String} id   The id to associate with the status message
 	 * @param  {Error}  err  The gulp error object 
+	 * @return {void}
 	 */
-	show_error: function(id, err) {
+	show_error: function(id, error) {
+		var err;
+
 		if (typeof id !== 'string') {
-			throw new Error('The ID passed is not of type String');
-		}
-		if ( ! util.isObject(err)) {
-			throw new Error('Invalid error object');
+			err = new Error('The ID passed is not of type String');
+			throw err;
 		}
 		
-		var error = utils.normalizeError(err);
+		error = normalizeError(error);
 		var file = error.file;
 		sublime.run('show_error', { id: id, error: error }, { views: [file] });
 	},
+
+
+
+
 	// https://github.com/spalger/gulp-jshint/issues/50
 	// Error: map stream is not writable
 	/**
 	 * A JSHint reporter 
+	 * 
 	 * @param  {String} id
 	 * @return {map-stream}
 	 */
@@ -281,19 +354,19 @@ var sublime = {
 			throw new gutil.PluginError(PLUGIN_NAME, 'The ID passed to "sublime.reporter" is not of type string');
 		}
 		
-		var uid = Math.random();
+		var uid = _.uniqueId();
 
 		return mapStream(function (file, cb) {
 
 			// Find the command to add more data to it 
 			// The command will be run when the task ends 
-			var command = commandQueue.whereOne('uid', uid);
+			var command = _(commandQueue).where({ uid: uid }).first();
 			var report = file.jshint;
 
 			if ( ! command) {
 				var command = make_command('report', { reports: [report], id: id });
 				command.uid = uid;
-				commandQueue.append(command);
+				commandQueue.push(command);
 			}
 			
 			command.data.args.reports.push(report);
@@ -305,9 +378,10 @@ var sublime = {
 };
 
 
+
+
 module.exports = sublime;
-
-
+module.exports.DEV = DEV;
 
 
 

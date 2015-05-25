@@ -1,8 +1,7 @@
 'use strict';
 
 var net = require('net');
-var util = require('util');
-var utils = require('./utils');
+var _ = require('lodash');
 
 
 
@@ -22,19 +21,25 @@ var socket_send = function(data) {
 
 /**
  * A factory for creating sockets 
+ * 
  * @param {Object}   options 
  * @param {Function} onConnectHandler 
  */
 var createSocket = function(options, onConnectHandler) {
-	if (typeof options !== 'object') {
-		throw new Error('Socket options were not specified');
+	var err;
+
+	if ( ! _.isObject(options)) {
+		err = new Error('Socket options were not specified');
+		throw err;
 	}
 
-	var port = Number(options.port);
+	var port = options.port;
 
-	if ( ! util.isNumber(port)) {
-		throw new Error('The port specified is invalid: ' + port);
+	if ( ! _.isFinite(port)) {
+		err = new Error('The port specified is invalid: ' + port);
+		throw err;
 	}
+
 
 	var socket = net.createConnection(port, 'localhost');
 	socket.setEncoding('utf8');

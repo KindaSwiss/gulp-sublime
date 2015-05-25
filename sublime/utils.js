@@ -1,14 +1,6 @@
 
 var path = require('path');
 
-var isNumber = function(value) {
-	value = value - 0;
-	return value === value && typeof value === 'number' && isFinite(value);
-};
-
-var isString = function (value) {
-	return typeof value === 'string' || Object.prototype.toString.call(value) === '[object String]';
-};
 
 var normalizeError = function (err) {
 	var pluginName = err.plugin || id;
@@ -51,35 +43,6 @@ var normalizeError = function (err) {
 
 
 /**
- * Check if all items are truthy 
- * @param  {Array} items
- * @return {Boolean}     Whether all items in the array are truthy 
- */
-var all = function(items) {
-	var index = 0, len = items.length;
-	for (; index < len; index++)
-	{
-		if (!items[index]) { return false; }
-	}
-	return true;
-};
-
-/**
- * Check if all items are truthy 
- * @param  {Array} items
- * @return {Boolean}     Whether all items in the array are truthy 
- */
-var any = function(items) {
-	var index = 0, len = items.length;
-	for (; index < len; index++)
-	{
-		if (items[index]) { return true; }
-	}
-	return false;
-};
-
-
-/**
  * 
  * @param  {String} command_name
  * @param  {Object} args         
@@ -98,14 +61,16 @@ var make_command = function(command_name, args, init_args) {
 
 
 
+
 var exports = {
 	normalizeError: normalizeError,
-	isNumber: isNumber,
-	all: all,
-	any: any,
 	make_command: make_command
 };
 
 
+
+
 module.exports = exports;
+
+
 
