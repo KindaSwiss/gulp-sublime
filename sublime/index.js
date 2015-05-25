@@ -224,7 +224,7 @@ var sublime = {
 	config: function (options) {
 		options = options || {};
 		var gulp = options.gulp;
-		module.exports.DEV = DEV !!options.dev || false;
+		module.exports.DEV = DEV = !!options.dev || false;
 		
 		if (_.isFinite(options.port)) {
 			PORT = options.port;
@@ -355,12 +355,14 @@ var sublime = {
 		}
 		
 		var uid = _.uniqueId();
-
+		
 		return mapStream(function (file, cb) {
 
 			// Find the command to add more data to it 
 			// The command will be run when the task ends 
+			// console.log(_(commandQueue).where({ uid: uid }).first())
 			var command = _(commandQueue).where({ uid: uid }).first();
+			
 			var report = file.jshint;
 
 			if ( ! command) {

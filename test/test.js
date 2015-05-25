@@ -11,7 +11,6 @@ var path = require('path');
 
 var sublime = require('../sublime')
 var sockets = require('../sublime/socket');
-var List = require('../sublime/lib/list');
 
 var PORT = 30048;
 

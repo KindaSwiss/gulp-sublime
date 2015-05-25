@@ -57,42 +57,43 @@ sublime.config({
  */
 gulp.task('compile-sass--plumber', function (done) {
 
-	return gulp.src(paths.sass).
+	return gulp.src(paths.sass)
 
-		pipe(plumber({ 
+		.pipe(plumber({ 
 			errorHandler: function (err) {
 				sublime.show_error('compile-sass--plumber', err)
 				done();
 			}
-		})).
+		}))
 
-		pipe(sass({
+		.pipe(sass({
 			indentedSyntax: true,
 			// onSuccess runs for each file that is successfully compiled. 
 			// It does not run when all files have been successfully compiled 
 			onSuccess: function (file) {
 				// console.log(file)
 			}
-		})).
+		}))
 
-		pipe(gulp.dest(paths.sassDest));
+		.pipe(gulp.dest(paths.sassDest));
 });
 
 
 
 
 gulp.task('js-hint', function (done) {
-	return gulp.src(paths.js).
-		pipe(plumber({
-			errorHandler: function () {
+	return gulp.src(paths.js)
+		.pipe(plumber({
+			errorHandler: function (err) {
+				console.log(err)
 				this.emit('end');
 			}
-		})).
-		pipe(jshint()).
-		pipe(sublime.reporter('jshint')).
+		}))
+		.pipe(jshint())
+		.pipe(sublime.reporter('jshint'))
 
 		// For some reason sublime.reporter is not called when 
-		pipe(jshint.reporter('jshint-stylish'));
+		// pipe(jshint.reporter('jshint-stylish'));
 });
 
 
@@ -108,14 +109,14 @@ gulp.task('compile-sass', function (done) {
 		
 		pipe(sass({
 			indentedSyntax: true,
-		})).
-		on('error', function (err) {
+		}))
+		.on('error', function (err) {
 			sublime.show_error('compile-sass', err);
 			// Must use this.emit('end') or done() to keep gulp watch going 
 			done();
-		}).
+		})
 	
-		pipe(gulp.dest(paths.sassDest));
+		.pipe(gulp.dest(paths.sassDest));
 });
 
 
