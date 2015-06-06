@@ -2,33 +2,25 @@
 
 var util = require('util');
 var path = require('path');
-
 var mapStream = require('map-stream');
 var gutil = require('gulp-util');
+var _ = require('lodash');
+var gulp = require('gulp');
 
 var make_command = require('./utils').make_command;
 var normalizeError = require('./utils').normalizeError;
-
 var createSocket = require('./socket').createSocket;
-var _ = require('lodash');
+
+
+
+
 var DEV = false;
-
-
-
 var PLUGIN_NAME = 'gulp-sublime';
-
-
-
-
 /**
  * The port to connect to Sublime Text
  * @type {Number}
  */
 var PORT = 30048;
-
-
-
-
 /**
  * The maximum number of times the socket will try to reconnect to sublime 
  * @type {Integer}
@@ -36,11 +28,6 @@ var PORT = 30048;
 var MAX_TRIES = 10;
 var RECONNECT_TIMEOUT = 1000;
 
-
-
-
-var IS_FAILURE = 0;
-var IS_SUCCESS = 1;
 
 
 
@@ -114,7 +101,15 @@ var socketEventHandlers = {
  */
 var commandQueue = [];
 
+var onWatchChange = function (event) {
+	taskInitiator = event.path;
+};
 
+/**
+ * The name of the file that initiated a task via watch 
+ * @type {String}
+ */
+var taskInitiator;
 
 
 /**
@@ -214,16 +209,14 @@ var sublime = {
 
 
 	/**
-	 * Configure the sublime module 
+	 * Configure settings  
 	 * 
 	 * @param  {Object}  options
 	 * @param  {Integer} options.port
-	 * @param  {Object}  options.gulp
 	 * @return {void}
 	 */
 	config: function (options) {
 		options = options || {};
-		var gulp = options.gulp;
 		module.exports.DEV = DEV = !!options.dev || false;
 		
 		if (_.isFinite(options.port)) {
@@ -240,9 +233,24 @@ var sublime = {
 			gulp.on('task_stop', function (task) {
 				currentTask = null;
 				_.each(commandQueue, function (command) {
-					sublime._connection.send(command);
+					sublime.run(command);
 				});
 			});
+		});
+	},
+
+
+
+	/**
+	 * This is used to determine the file that caused the task to run. 
+	 * 
+	 * @param  {Array} watchers 
+	 * @return {void}           
+	 */
+	watchers: function (watchers) {
+		_.each(watchers, function (watcher) {
+			watchers.removeListener('change', onWatchChange);
+			watchers.on('change', onWatchChange);
 		});
 	},
 
@@ -286,7 +294,15 @@ var sublime = {
 	 * @return {void}
 	 */
 	run: function (command_name, args, init_args) {
-		sublime._connection.send(make_command(command_name, args, init_args));
+		var command;
+		if (typeof command_name === "object") {
+			command = command_name;
+		}
+		else {
+			command = make_command(command_name, args, init_args);
+		}
+		command.data.args.task_initiator = taskInitiator;
+		sublime._connection.send(command);
 	},
 
 
@@ -323,15 +339,19 @@ var sublime = {
 	 * @param  {Error}  err  The gulp error object 
 	 * @return {void}
 	 */
-	show_error: function(id, error) {
+	show_error: function(error, id) {
 		var err;
 
+		if (id === null) {
+			id = currentTask;
+		}
+		
 		if (typeof id !== 'string') {
 			err = new Error('The ID passed is not of type String');
 			throw err;
 		}
 		
-		error = normalizeError(error);
+		error = normalizeError(error, id);
 		var file = error.file;
 		sublime.run('show_error', { id: id, error: error }, { views: [file] });
 	},
@@ -347,18 +367,17 @@ var sublime = {
 	 * @param  {String} id
 	 * @return {map-stream}
 	 */
-	reporter: function (id) {
-		if (typeof id !== 'string') {
-			throw new gutil.PluginError(PLUGIN_NAME, 'The ID passed to "sublime.reporter" is not of type string');
-		}
-		
+	reporter: function (reports, id) {
+		// Else gulp jshint 
+		id = (typeof id !== 'string') ? currentTask : id;
+
 		var uid = _.uniqueId();
+		var emptyArray = [];
 		
 		return mapStream(function (file, cb) {
 
 			// Find the command to add more data to it 
 			// The command will be run when the task ends 
-			// console.log(_(commandQueue).where({ uid: uid }).first())
 			var command = _(commandQueue).where({ uid: uid }).first();
 			
 			var report = file.jshint;
@@ -371,11 +390,30 @@ var sublime = {
 			
 			command.data.args.reports.push(report);
 
-			cb(null, file);
+			return cb(null, file);
 		});
 	}
 
 };
+
+
+
+
+// Automatically connect to Sublime Text 
+sublime.connect(function () {
+	gulp.on('task_start', function (task) {
+		sublime.erase_errors(task.task);
+		currentTask = task.task;
+		commandQueue = [];
+	});
+	gulp.on('task_stop', function (task) {
+		currentTask = null;
+		_.each(commandQueue, function (command) {
+			sublime.run(command);
+		});
+	});
+});
+
 
 
 

@@ -1,4 +1,4 @@
-# sublimejs
+# gulp-sublime
 
 This is meant to be paired with [sublimegulpserver](https://github.com/KindaSwiss/sublimegulpserver). 
 
@@ -17,10 +17,9 @@ Any of these things can be enabled/disabled in the package settings. The status 
 ```Javascript
 var gulp = require('gulp');
 var sass = require('gulp-sass');
-var sublime = require('sublime')
+var sublime = require('gulp-sublime')
 
 sublime.config({
-	gulp: gulp, 
 	port: {Integer} // optional 
 });
 

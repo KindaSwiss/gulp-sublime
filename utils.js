@@ -2,7 +2,7 @@
 var path = require('path');
 
 
-var normalizeError = function (err) {
+var normalizeError = function (err, id) {
 	var pluginName = err.plugin || id;
 	var line = (err.line || err.lineNumber) - 1;
 	var file = err.file || err.fileName;

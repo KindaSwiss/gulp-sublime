@@ -121,7 +121,7 @@ The ID of the status bar message to be removed
 
 ### sublime.show_error(id, err)
 
-Shows a status bar error message, an error popup message, and a gutter icon next to the line that caused the error (Any can be turned of in package settings). 
+Shows a status bar error message, an error popup message, and a gutter icon next to the line that caused the error.
 
 ```Javascript
 gulp.task('compile-sass', function (done) {
@@ -163,23 +163,17 @@ The error object
 
 ### sublime.config(options)
 
-When called, the socket will try to connect. Passing in the gulp option will add a listener to gulp's `task_start` event so that errors will be automatically removed. If it is not passed, `sublime.erase_errors` will have to be called at the start of each task. 
+Configures the port on which to connect to Sublime Text. 
 
 ```Javascript
 var gulp = require('gulp');
-var sublime = require('sublime');
-sublime.config({ gulp: gulp, port: 12345 })
+var sublime = require('gulp-sublime');
+sublime.config({ port: 12345 })
 ```
 
 #### options
 
 Type: `Object`
-
-#### options.gulp
-
-Type: `Object`
-
-The gulp object 
 
 #### options.port (optional)
 
@@ -223,7 +217,7 @@ The ID to associate with the reporter. The ID is used to identify a view so that
 
 ### sublime.erase_errors(id)
 
-Remove gutter icons and status messages associated with errors. This should not need to be used when calling `sublime.config({ gulp: gulp })`. 
+Remove gutter icons and status messages associated with errors. 
 
 ```Javascript
 sublime.erase_errors('Sass')
