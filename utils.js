@@ -6,7 +6,20 @@ var normalizeError = function (err, id) {
 	var pluginName = err.plugin || id;
 	var line = (err.line || err.lineNumber) - 1;
 	var file = err.file || err.fileName;
+	var message = err.message;
 
+	// Fix the case where the file being processed by gulp-sass 
+	// isn't an imported partial 
+	if (file === 'stdin' && pluginName === 'gulp-sass') {
+		file = err.message.split('\n')[0];
+	}
+
+	// Just in case any error message (such as autoprefixer) produce an 
+	// extremely long error message 
+	if (message.length > 2000) {
+		message = message.substring(0, 2000);
+	}
+	
 	var basename = path.basename(file);
 	var dirname = path.dirname(file);
 	var ext = path.extname(file);
@@ -33,7 +46,7 @@ var normalizeError = function (err, id) {
 		
 		line: line,
 
-		message: err.message.split(/\n/)[0],
+		message: message,
 	};
 	
 	return error;
