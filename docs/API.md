@@ -4,7 +4,9 @@
 
 
 ### sublime.connect(handler)
+
 Connect to the server 
+
 ```Javascript
 sublime.connect(function () {
 	// 
@@ -43,7 +45,7 @@ A function to listen to the `close` event of the socket.
 
 ### sublime.run(command_name, args, init_args)
 
-Run a gulp command
+Run a gulp command 
 
 ```Javascript
 sublime.run('set_status', { message: 'Delicious apple cider' }, { views: [file] })
@@ -66,8 +68,6 @@ The arguments to pass to the command
 Type: `Object`
 
 The arguments to pass to the command's \_\_init\_\_ function. Possible arguments are `views` which may be '&lt;all&gt;' for all views or a array of file names. The file names will be used to match views with the same open file. 
-
-
 
 
 <br>
@@ -94,8 +94,6 @@ Type: `String`
 The message to show in the status bar. 
 
 
-
-
 <br>
 
 
@@ -119,7 +117,7 @@ The ID of the status bar message to be removed
 
 
 
-### sublime.show_error(id, err)
+### sublime.show_error(err)
 
 Shows a status bar error message, an error popup message, and a gutter icon next to the line that caused the error.
 
@@ -133,22 +131,16 @@ gulp.task('compile-sass', function (done) {
 		.pipe(sass())
 		
 		.on('error', function (err) {
-			sublime.show_error('Sass', err);
+			sublime.show_error(err);
 
 			// Call done or this.emit('end') to keep the watch going 
-			done();
+			this.emit('end')
 		})
 		
 		.pipe(autoprefixer())
 		.pipe(gulp.dest(paths.sassDest))
 
 ```
-
-#### id
-
-Type: `String`
-
-The ID to associate with the error gutter icons and status messages 
 
 #### err
 
@@ -157,9 +149,8 @@ Type: `Object`
 The error object 
 
 
-
-
 <br>
+
 
 ### sublime.config(options)
 
@@ -182,9 +173,8 @@ Type: `Integer`
 The port to connect to Sublime on.
 
 
-
-
 <br>
+
 
 ### sublime.reporter(id)
 
@@ -194,12 +184,10 @@ A reporter meant solely for JSHint. The when run, it will open a new tab in Subl
 gulp.task('js-hint', function (done) {
 	return gulp.src(paths.js).
 		pipe(jshint()).
-
 		pipe(sublime.reporter('jshint')).
 
 		// For some reason sublime.reporter is not called when called 
 		// when put after jshint.reporter, so it must be put first 
-
 		pipe(jshint.reporter('jshint-stylish'));
 });
 ```
@@ -211,9 +199,8 @@ Type: `String`
 The ID to associate with the reporter. The ID is used to identify a view so that only one is used per report. 
 
 
-
-
 <br>
+
 
 ### sublime.erase_errors(id)
 
