@@ -1,52 +1,68 @@
 # gulp-sublime
 
-This is meant to be paired with [sublimegulpserver](https://github.com/KindaSwiss/sublimegulpserver). 
+This is meant to be paired with [sublimegulpserver](https://github.com/KindaSwiss/sublimegulpserver). It is a tool I use for showing error messages from gulp files in Sublime Text 3. 
 
-This is a tool I use for showing error messages from gulp files in Sublime Text 3. It has a few features. 
+## Features
+- Displays an error message in the status bar showing the file, line number, and plugin that caused the error. 
+- Scrolls to the line where the error occured if the file is open 
+- Shows a gutter icon next to the line where the error occured 
+- Shows a popup message (must have ST3 version greater than 3083) 
+- Shows the results from JSHint that will display in the format of a "Find in Files" tab
 
-It can: 
-- Display an error message in the status bar showing the file, line number, and plugin that caused the error. 
-- Scroll the line where the error occured if the file is open 
-- Show a gutter icon next to the line where the error occured 
-- Show a popup message, which is simple new feature as of ST3 3083.  
+__Note:__  The `scroll to error` and `gutter icon` features do not work with Sass entry files (non partials). 
 
-Any of these things can be enabled/disabled in the package settings. The status bar and popup messages format can be customized as well. 
+Any of these features can be enabled/disabled in the package settings. The status bar and popup messages format can be customized as well. 
 
 ## Example usage 
 
 ```Javascript
-var gulp = require('gulp');
-var sass = require('gulp-sass');
-var sublime = require('gulp-sublime')
+var gulp    = require('gulp');
+var sass    = require('gulp-sass');
+var react   = require('gulp-react');
+var jshint  = require('gulp-jshint');
+var sublime = require('gulp-sublime');
+var plumber = require('gulp-plumber');
 
 sublime.config({
 	port: {Integer} // optional 
 });
 
-gulp.task('compile-sass--plumber', function (done) {
-	
-	return gulp.src(paths.sass)
-		.pipe(plumber({ 
-			errorHandler: function (err) {
-				
-				// The first argument should be the task name 
-				sublime.show_error('compile-sass--plumber', err);
+var handleError = { 
+	errorHandler: function (err) {
+		sublime.show_error(err);
+		// Keep gulp watch going by calling done or this.emit('end')
+		this.emit('end');
+	} 
+}
 
-				// Keep gulp watch going by calling done or this.emit('end')
-				done();
-			} 
-		}))
-		
+gulp.task('sass', function (done) {
+	return gulp.src(config.src)
+		.pipe(plumber(handleError))
 		.pipe(sass())
-		
-		.pipe(gulp.dest(paths.sassDest));
+		.pipe(gulp.dest(config.dest));
 });
 
+gulp.task('javascript', function(done) {
+	// The task must be returned or else the reporter won't work 
+	return gulp.src(config.src)
+		.pipe(plumber(handleError))
+		.pipe(react({ harmony: true }))
+		.pipe(jshint(config.settings.jshint))
+		.pipe(sublime.reporter(null, 'jshint practice'))
+});
 ```
+All that needs to be done is to pass `sublime.show_error` an error object. 
 
-In the above example, `sublime.config` is called and is passed the gulp object. The purpose of this is to add a listener to gulp's task_start event so that error gutter icons, and status messages are removed. A port may also be specified, but must also must be changed in sublimegulpserver package settings. 
+The first argument to `sublime.reporter` should be `null`. The second argument is optional and is used as the name of the results tab. If not passed, the name will default to the task name. 
 
-The first argument to `sublime.show_error` is the key to associate with the error, which must be the task name. The second argument should be an error object. 
+## JSX error
+![react error example](https://github.com/KindaSwiss/gulp-sublime/blob/master/images/jsx-error.png)
+
+## Sass Error
+![sass error example](https://github.com/KindaSwiss/gulp-sublime/blob/master/images/sass-error.png)
+
+
+
 
 
 
