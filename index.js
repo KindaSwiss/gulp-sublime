@@ -1,5 +1,6 @@
 'use strict';
 
+var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 var path = require('path');
 var mapStream = require('map-stream');
@@ -27,11 +28,6 @@ var PORT = 30048;
  */
 var MAX_TRIES = 10;
 var RECONNECT_TIMEOUT = 1000;
-
-
-
-
-
 /**
  * This array holds handlers added by sublime.disconnect. 
  * Each callback is removed right after it is called 
@@ -101,15 +97,33 @@ var socketEventHandlers = {
  */
 var commandQueue = [];
 
-var onWatchChange = function (event) {
-	taskInitiator = event.path;
-};
 
 /**
  * The name of the file that initiated a task via watch 
  * @type {String}
  */
 var taskInitiator;
+
+/**
+ * Fires when a file changes. 
+ * @param  {Event} event 
+ * @return {void}       
+ */
+var onWatchChange = function (event) {
+	taskInitiator = event.path;
+};
+
+var onGulpTaskStart = function (task) {
+	if (task.task === 'default') { return; }
+	currentTask = task.task;
+	sublime.erase_errors(task.task);
+	commandQueue = [];
+};
+var onGulpTaskStop = function (task) {
+	_.each(commandQueue, function (command) {
+		sublime.run(command);
+	});
+};
 
 
 /**
@@ -122,7 +136,7 @@ var currentTask = null;
 
 
 
-var sublime = {
+var SublimeProto = {
 	_connection: null,
 	_tries: 0,
 	connected: false,
@@ -137,6 +151,7 @@ var sublime = {
 	 * @return {void}
 	 */
 	_reconnect: function (onConnectHandler) {
+		this.emit('before:reconnect');
 		this._tries++;
 		if (this._tries > MAX_TRIES) {
 			return console.log('Max reconnect tries exceeded');
@@ -148,13 +163,15 @@ var sublime = {
 				on: socketEventHandlers
 			}, onConnectHandler);
 		}.bind(this), RECONNECT_TIMEOUT);
+		this.emit('after:reconnect');
 	},
 
 
 
 
 	/**
-	 * Connect the server to sublime 
+	 * Connect the server to sublime. 
+	 * The previous socket will automatically be disconnected
 	 *
 	 * The options may contain a port and socket event handlers. If no port is defined, 
 	 * the default port will be used. 
@@ -164,6 +181,7 @@ var sublime = {
 	 * @return {void}
 	 */
 	connect: function (options, onConnectHandler) {
+		this.emit('before:connect');
 		var err, 
 			options = options || {},
 			port = PORT;
@@ -185,6 +203,8 @@ var sublime = {
 			port: port,
 			on: socketEventHandlers
 		}, onConnectHandler);
+
+		this.emit('after:connect');
 	},
 
 
@@ -198,14 +218,25 @@ var sublime = {
 	 * @return {void}
 	 */
 	disconnect: function (onDisconnectHandler) {
+		this.emit('before:disconnect');
 		if (this._connection) {
 			if (typeof onDisconnectHandler === 'function' && connected) {
 				tempDisconnectHandlers.push(onDisconnectHandler);
 			}
 			this._connection.destroy();
 		}
+		this.emit('after:disconnect');
 	},
 
+
+	start: function () {
+		this.connect(function () {
+			gulp.removeListener('task_start', onGulpTaskStart);
+			gulp.removeListener('task_stop', onGulpTaskStop);
+			gulp.on('task_start', onGulpTaskStart);
+			gulp.on('task_stop', onGulpTaskStop);
+		});
+	},
 
 
 	/**
@@ -223,35 +254,19 @@ var sublime = {
 			PORT = options.port;
 		}
 
-		sublime.connect(function () {
-			gulp.on('task_start', function (task) {
-				if (task.task === 'default') { return; }
-				sublime.erase_errors(task.task);
-				currentTask = task.task;
-				commandQueue = [];
-			});
-			gulp.on('task_stop', function (task) {
-				currentTask = null;
-				_.each(commandQueue, function (command) {
-					sublime.run(command);
-				});
-			});
-		});
+		this.start();
 	},
 
 
 
-	/**
-	 * This is used to determine the file that caused the task to run. 
-	 * 
-	 * @param  {Array} watchers 
-	 * @return {void}           
-	 */
+
 	watchers: function (watchers) {
-		_.each(watchers, function (watcher) {
-			watchers.removeListener('change', onWatchChange);
-			watchers.on('change', onWatchChange);
-		});
+		var index = 0,
+			length = watchers.length;
+		for (; index < length; index++) {
+			watchers[index].removeListener('change', onWatchChange);
+			watchers[index].on('change', onWatchChange);
+		}
 	},
 
 
@@ -286,14 +301,18 @@ var sublime = {
 
 
 	/**
-	 * Run a gulp command in Sublime Text
+	 * Run a gulp command in Sublime Text. 
 	 * 
-	 * @param  {String} command_name  The command to run 
-	 * @param  {Object} args          The arguments to pass to the command 
-	 * @param  {Object} init_args     The command __init__ arguments 
+	 * @param  {String|Object} command_name The command to run, or an premade command object to send.  
+	 *                                      
+	 * @param  {Object} args                The arguments to pass to the command's classes's run function (in Sublime Text)
+	 *                                      
+	 * @param  {Object} init_args            Arguments for the command classes's __init__ arguments 
+	 * 
 	 * @return {void}
 	 */
 	run: function (command_name, args, init_args) {
+		this.emit('before:run');
 		var command;
 		if (typeof command_name === "object") {
 			command = command_name;
@@ -303,6 +322,7 @@ var sublime = {
 		}
 		command.data.args.task_initiator = taskInitiator;
 		sublime._connection.send(command);
+		this.emit('after:run');
 	},
 
 
@@ -316,7 +336,7 @@ var sublime = {
 	 */
 	erase_errors: function (id) {
 		var err;
-		if ( ! util.isString(id)) {
+		if (typeof id !== 'string') {
 			err = new Error('The ID passed is not of type String');
 			throw err;
 		}
@@ -342,10 +362,11 @@ var sublime = {
 	show_error: function(error, id) {
 		var err;
 
-		if (id === null) {
+		if (!id || typeof id !== 'string') {
 			id = currentTask;
 		}
-		
+
+		// 
 		if (typeof id !== 'string') {
 			err = new Error('The ID passed is not of type String');
 			throw err;
@@ -371,6 +392,11 @@ var sublime = {
 		// Else gulp jshint 
 		id = (typeof id !== 'string') ? currentTask : id;
 
+		// For webpack jshint 
+		if (Array.isArray(reports)) {
+			return sublime.run('report', { reports: reports, id: id });
+		}
+		
 		var uid = _.uniqueId();
 		var emptyArray = [];
 		
@@ -398,22 +424,15 @@ var sublime = {
 
 
 
+// Turn `sublime` into an event emitter 
+_.assign(SublimeProto, EventEmitter.prototype);
+var sublime = Object.create(SublimeProto);
+EventEmitter.call(sublime);
 
-// Automatically connect to Sublime Text 
-sublime.connect(function () {
-	gulp.on('task_start', function (task) {
-		sublime.erase_errors(task.task);
-		currentTask = task.task;
-		commandQueue = [];
-	});
-	gulp.on('task_stop', function (task) {
-		currentTask = null;
-		_.each(commandQueue, function (command) {
-			sublime.run(command);
-		});
-	});
-});
 
+
+
+sublime.start();
 
 
 
