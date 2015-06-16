@@ -2,7 +2,6 @@
 /*
 	Note: Run the tests with server in Sublime Text running 
  */
-// var sinon = require('sinon');
 var assert = require('chai').assert;
 var expect = require('chai').expect;
 var path = require('path');
@@ -26,7 +25,6 @@ describe('socket', function() {
 			this.destroy();
 		},
 		connect: function onSocketConnected() {
-			gutil.log('Connected to server');
 			this.send(handshake);
 		},
 		data: function onSocketReceived(data) {
