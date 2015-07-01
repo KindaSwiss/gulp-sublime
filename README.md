@@ -1,12 +1,12 @@
 # gulp-sublime
 
-This is meant to be paired with [sublimegulpserver](https://github.com/KindaSwiss/sublimegulpserver). It is a tool I use for showing error messages from gulp files in Sublime Text 3. 
+This is a tool I use for sending error messages to Sublime Text. I use it along with  [sublimegulpserver](https://github.com/anthonykoch/sublimegulpserver) to receive the messages. 
 
 ## Features
 - Displays an error message in the status bar showing the file, line number, and plugin that caused the error. 
 - Scrolls to the line where the error occured if the file is open 
 - Shows a gutter icon next to the line where the error occured 
-- Shows a popup message (must have ST3 version greater than 3083) 
+- Shows a popup message (ST3 version must be greater than 3083) 
 - Shows the results from JSHint that will display in the format of a "Find in Files" tab
 
 __Note:__  The `scroll to error` and `gutter icon` features do not work with Sass entry files (non partials). 
