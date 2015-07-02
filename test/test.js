@@ -1,17 +1,22 @@
 'use strict';
 /*
 	Note: Run the tests with server in Sublime Text running 
+
  */
 var assert = require('chai').assert;
 var expect = require('chai').expect;
-var path = require('path');
 
 
-var sublime = require('../index')
-var sockets = require('../socket');
+var sublime = require('./../index');
+var utils = require('./../utils');
+
+// Tell sublime to not reconnect after disconnecting 
+sublime.config({
+	shouldReconnect: false,
+});
+
 
 var PORT = 30048;
-
 
 
 
@@ -31,20 +36,22 @@ describe('socket', function() {
 		}
 	}
 
-	var socket = sockets.createSocket({ host: 'localhost', port: PORT, on: socketEvents });
+	var socket = utils.createSocket({
+		host: 'localhost', 
+		port: PORT, 
+		on: socketEvents
+	});
 
 	describe('It should be an object', function () {
 		expect(socket).to.be.an('object');
 	});
 
 	describe('#send', function () {
-
 		it('Should be defined as a function', function () {
 			expect(socket)
 				.to.have.property('send')
 				.that.is.an('function');
 		});
-
 	});
 
 	describe('#_events ', function() {
@@ -110,9 +117,19 @@ describe('socket', function() {
 
 
 describe('sublime', function() {
+	beforeEach(function () {
+		sublime.removeAllListeners('connect');
+		sublime.removeAllListeners('disconnect');
+	});
 
 	it('It should be an object', function () {
 		expect(sublime).to.be.an('object');
+	});
+
+	it('It should be an event emitter', function () {
+		expect(sublime)
+			.to.have.property('_events')
+			.that.is.a('object')
 	});
 
 	describe('#connect', function () {
@@ -123,42 +140,28 @@ describe('sublime', function() {
 				.that.is.an('function');
 		});
 
-		it('Should add a listener to the "connect" event of the socket', function() {
-			var listener = function listener() {};
-			
-			sublime.connect(listener);
-			sublime._connection.on('connect', function () {});
-
-			expect(sublime)
-				.to.have.deep.property('_connection._events.connect')
-				.that.is.an('array')
-				.to.include(listener)
-		});
 
 		it('Should assign a socket object to the "_connection" property of sublime', function () {
-			expect(sublime)
-				.to.have.property('_connection')
-				.that.is.an('object');
+			sublime.on('connect', function () {
+				expect(sublime)
+					.to.have.property('_connection')
+					.that.is.an('object');
+			});
+			sublime.connect();
 		});
 
 		it('Should assign true to the "connected" property of sublime', function (done) {
-			sublime.connect(function listenerDude() {
+			sublime.on('connect', function () {
 				expect(sublime)
 					.to.have.property('connected')
 					.to.be.true;
-
+				
 				done();
 			});
+			sublime.connect();
 		});
 	}); // #connect
 
-	describe('#set_status', function () {
-		it('Should be defined as function', function() {
-			expect(sublime)
-			.to.have.property('set_status')
-			.that.is.a('function')
-		});
-	}); // #set_status
 
 	describe('#disconnect', function () {
 
@@ -169,15 +172,16 @@ describe('sublime', function() {
 		});
 
 		it('Should add the callback to socket._events and close the socket causing the callback to be run when the socket closes', function (done) {
-			sublime.connect(function () {
+			sublime.on('connect', function () {
 				sublime.disconnect(function () {
 					done();
 				});
 			});
+			sublime.connect();
 		});
 
 		it('Should assign false to the "connected" property on the sublime object', function (done) {
-			sublime.connect(function () {
+			sublime.on('connect', function () {
 				sublime.disconnect(function () {
 					expect(sublime)
 						.to.have.property('connected')
@@ -185,20 +189,29 @@ describe('sublime', function() {
 					done();
 				});
 			});
-			
+
+			sublime.connect();
 		});
 	}); // #disconnect 
 
 
-	describe('#show_error', function () {
+	describe('#showError', function () {
 
 		it('Should be defined as a function', function () {
 			expect(sublime)
-				.to.have.property('show_error')
+				.to.have.property('showError')
 				.that.is.an('function');
 		});
 
-	}); // #show_error
+	}); // #showError
+
+	describe('#setStatus', function () {
+		it('Should be defined as function', function() {
+			expect(sublime)
+			.to.have.property('setStatus')
+			.that.is.a('function')
+		});
+	}); // #setStatus
 
 }); // sublime
 

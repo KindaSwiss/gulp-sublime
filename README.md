@@ -1,6 +1,6 @@
 # gulp-sublime
 
-This is a tool I use for sending error messages to Sublime Text. I use it along with  [sublimegulpserver](https://github.com/anthonykoch/sublimegulpserver) to receive the messages. 
+This is a tool I use for sending [Gulp](https://github.com/gulpjs/gulp/) error messages to Sublime Text. I use it along with  [sublimegulpserver](https://github.com/anthonykoch/sublimegulpserver) to receive the messages. 
 
 ## Features
 - Displays an error message in the status bar showing the file, line number, and plugin that caused the error. 
@@ -23,48 +23,43 @@ var jshint  = require('gulp-jshint');
 var sublime = require('gulp-sublime');
 var plumber = require('gulp-plumber');
 
-sublime.config({
-	port: {Integer} // optional 
-});
+var handleError = function (taskName) {
+	return { 
+		errorHandler: function (err) {
+			// Pass the error object and the task name 
+			sublime.showError(err, taskName);
+			// Keep gulp.watch going 
+			this.emit('end');
+		} 
+	};
+};
 
-var handleError = { 
-	errorHandler: function (err) {
-		sublime.show_error(err);
-		// Keep gulp watch going by calling done or this.emit('end')
-		this.emit('end');
-	} 
-}
-
-gulp.task('sass', function (done) {
+gulp.task('sass', function () {
 	return gulp.src(config.src)
-		.pipe(plumber(handleError))
+		.pipe(plumber(handleError('sass')))
 		.pipe(sass())
 		.pipe(gulp.dest(config.dest));
 });
 
-gulp.task('javascript', function(done) {
-	// The task must be returned or else the reporter won't work 
+gulp.task('javascript', function() {
 	return gulp.src(config.src)
-		.pipe(plumber(handleError))
+		.pipe(plumber(handleError('javascript')))
 		.pipe(react({ harmony: true }))
 		.pipe(jshint(config.settings.jshint))
-		.pipe(sublime.reporter(null, 'jshint practice'))
+		.pipe(sublime.reporter('jshint blog'))
 });
 ```
-All that needs to be done is to pass `sublime.show_error` an error object. 
 
-The first argument to `sublime.reporter` should be `null`. The second argument is optional and is used as the name of the results tab. If not passed, the name will default to the task name. 
+
+In a error handler, whether it be .on('error') or plumber handler, pass the error object to `sublime.showError` as well as the task name. The task name is used as the ID for the status message and gutter icon regions. If the incorrect task name is passed, the errors status messages and icons will not be erased. 
+
+For the reporter, the first argument to `sublime.reporter` is used as the name and identifier of the results tab. The results tab will be overwritten every time the reporter is run. 
 
 ## JSX error
-![react error example](https://github.com/KindaSwiss/gulp-sublime/blob/master/images/jsx-error.png)
+![react error example](https://github.com/anthonykoch/gulp-sublime/blob/master/images/jsx-error.png)
 
 ## Sass Error
-![sass error example](https://github.com/KindaSwiss/gulp-sublime/blob/master/images/sass-error.png)
-
-
-
-
-
+![sass error example](https://github.com/anthonykoch/gulp-sublime/blob/master/images/sass-error.png)
 
 
 

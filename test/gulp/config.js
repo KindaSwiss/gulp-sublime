@@ -26,6 +26,7 @@ module.exports =
 				predef: ['console'],
 				browser: true,
 				browserify: true,
+				esnext: true,
 			},
 		}
 	}

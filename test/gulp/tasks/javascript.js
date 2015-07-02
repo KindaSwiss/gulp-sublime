@@ -10,9 +10,9 @@ var sublime       = require('../../../index');
 gulp.task('javascript', function(done) {
 
 	return gulp.src(config.src)
-		.pipe(plumber(handleError))
+		.pipe(plumber(handleError('javascript')))
 		.pipe(jshint(config.settings.jshint))
-		.pipe(sublime.reporter(null, 'jshint practice'))
+		.pipe(sublime.reporter('jshint gulp-sublime'))
 
 });
 
