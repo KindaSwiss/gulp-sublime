@@ -4,6 +4,8 @@ Object.defineProperty(exports, '__esModule', {
 	value: true
 });
 
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj['default'] = obj; return newObj; } }
 
 var _path = require('path');
@@ -13,6 +15,10 @@ var path = _interopRequireWildcard(_path);
 var _net = require('net');
 
 var net = _interopRequireWildcard(_net);
+
+var _config = require('./config');
+
+var _config2 = _interopRequireDefault(_config);
 
 /**
  * The end of message 
@@ -76,8 +82,8 @@ var normalizeError = function normalizeError(err, id) {
 		message = message.substring(0, 2000);
 	}
 
-	// Fix the case where the file being processed by gulp-sass
-	// isn't an imported partial
+	// Fix the case where the plugin errored in gulp-sass and the file
+	// being processed is an entry file
 	if (file === 'stdin' && pluginName === 'gulp-sass') {
 		file = err.message.split('\n')[0];
 	}
@@ -115,19 +121,36 @@ var normalizeError = function normalizeError(err, id) {
 };
 
 /**
+ * Packages up command information into one object 
  * 
- * @param  {String} command_name
- * @param  {Object} args         
- * @param  {Object} init_args    
+ * @param  {Object} options 
+ * @param  {String} options.name
+ * @param  {Object} options.args         
+ * @param  {Object} options.init_args    
  * @return {Object} 
  */
-var makeCommand = function makeCommand(command_name, args, init_args) {
+var Command = function Command(options) {
+
+	if (typeof options !== 'object') {
+		var err = new Error('Invalid parameters passed for Command');
+		throw err;
+	}
+
+	var name = options.name;
+	var _options$args = options.args;
+	var args = _options$args === undefined ? {} : _options$args;
+	var _options$init_args = options.init_args;
+	var init_args = _options$init_args === undefined ? {} : _options$init_args;
+	var _options$uid = options.uid;
+	var uid = _options$uid === undefined ? uniqueId() : _options$uid;
+
 	return {
-		command_name: command_name,
+		name: name,
 		data: {
-			args: args || {},
+			args: args,
 			init_args: init_args
-		}
+		},
+		uid: uid
 	};
 };
 
@@ -136,7 +159,7 @@ var makeCommand = function makeCommand(command_name, args, init_args) {
  * @return {void} 
  */
 var log = function log() {
-	if (!log.dev) {
+	if (!_config2['default'].dev) {
 		return;
 	}
 
@@ -147,12 +170,12 @@ var log = function log() {
  * Return a simple unique id 
  * @return {Number} 
  */
-var uniqueId = function uniqueId() {
+var uniqueId = (function () {
 	var id = 0;
 	return function uniqueId() {
 		return id++;
 	};
-};
+})();
 
 /**
  * Examples:
@@ -194,9 +217,5 @@ var where = function where(collection, names, value) {
 	return matches;
 };
 
-exports.normalizeError = normalizeError;
-exports.makeCommand = makeCommand;
-exports.log = log;
-exports.uniqueId = uniqueId;
-exports.createSocket = createSocket;
-exports.where = where;
+exports['default'] = { normalizeError: normalizeError, Command: Command, log: log, uniqueId: uniqueId, createSocket: createSocket, where: where };
+module.exports = exports['default'];

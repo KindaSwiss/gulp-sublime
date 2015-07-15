@@ -7,7 +7,7 @@ This is a tool I use for sending [Gulp](https://github.com/gulpjs/gulp/) error m
 - Scrolls to the line where the error occured if the file is open 
 - Shows a gutter icon next to the line where the error occured 
 - Shows a popup message (ST3 version must be greater than 3083) 
-- Shows the results from JSHint that will display in the format of a "Find in Files" tab
+- Shows the results from JSHint that will display in the format of a "Find in Files" tab. 
 
 __Note:__  The `scroll to error` and `gutter icon` features do not work with Sass entry files (non partials). 
 
@@ -57,10 +57,6 @@ For the reporter, the first argument to `sublime.reporter` is used as the name a
 
 ## JSX error
 ![react error example](https://github.com/anthonykoch/gulp-sublime/blob/master/images/jsx-error.png)
-
-## Sass Error
-![sass error example](https://github.com/anthonykoch/gulp-sublime/blob/master/images/sass-error.png)
-
 
 
 

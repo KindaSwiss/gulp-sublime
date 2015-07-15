@@ -1,11 +1,7 @@
 var gulp = require('gulp');
 var sublime = require('../../../index');
 
-sublime.config({
-	dev: true
-});
-
-var handleError = function (taskName) {
+var handleError = function handleError(taskName) {
 	if (typeof taskName !== 'string') {
 		var err = new Error('No task name was specified for the error handler');
 		throw err;

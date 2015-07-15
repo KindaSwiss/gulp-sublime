@@ -1,6 +1,7 @@
 
 import * as path from 'path';
 import * as net from 'net';
+import config from './config';
 
 
 
@@ -10,8 +11,7 @@ import * as net from 'net';
  */
 const END_OF_MESSAGE = '\n';
 
-
-const socket_send = function(data) {
+const socket_send = function socket_send(data) {
 	var message = JSON.stringify(data);
 	return this.write(message + END_OF_MESSAGE);
 };
@@ -22,7 +22,7 @@ const socket_send = function(data) {
  * @param {Object}   options 
  * @return {Object} 
  */
-const createSocket = function(options) {
+const createSocket = function createSocket(options) {
 	const port = options.port;
 
 	if ( ! Number.isFinite(port)) {
@@ -55,7 +55,7 @@ const createSocket = function(options) {
  * @param  {String} id  
  * @return {Object}    
  */
-const normalizeError = function (err, id) {
+const normalizeError = function normalizeError(err, id) {
 	const pluginName = err.plugin || id;
 	const line = (err.line || err.lineNumber) - 1;
 	let file = err.file || err.fileName;
@@ -67,8 +67,8 @@ const normalizeError = function (err, id) {
 		message = message.substring(0, 2000);
 	}
 	
-	// Fix the case where the file being processed by gulp-sass 
-	// isn't an imported partial 
+	// Fix the case where the plugin errored in gulp-sass and the file 
+	// being processed is an entry file 
 	if (file === 'stdin' && pluginName === 'gulp-sass') {
 		file = err.message.split('\n')[0];
 	}
@@ -106,19 +106,31 @@ const normalizeError = function (err, id) {
 };
 
 /**
+ * Packages up command information into one object 
  * 
- * @param  {String} command_name
- * @param  {Object} args         
- * @param  {Object} init_args    
+ * @param  {Object} options 
+ * @param  {String} options.name
+ * @param  {Object} options.args         
+ * @param  {Object} options.init_args    
  * @return {Object} 
  */
-const makeCommand = function(command_name, args, init_args) {
+const Command = function Command(options) {
+
+
+	if (typeof options !== 'object') {
+		let err = new Error('Invalid parameters passed for Command');
+		throw err;
+	}
+
+	const { name, args={}, init_args={}, uid=uniqueId() } = options;
+
 	return {
-		command_name: command_name,
+		name: name,
 		data: {
-			args: args || {},
-			init_args: init_args
+			args,
+			init_args
 		},
+		uid
 	};
 };
 
@@ -127,8 +139,8 @@ const makeCommand = function(command_name, args, init_args) {
  * Log things to the console 
  * @return {void} 
  */
-const log = function () {
-	if ( ! log.dev) {
+const log = function log() {
+	if ( ! config.dev) {
 		return;
 	}
 	
@@ -140,12 +152,12 @@ const log = function () {
  * Return a simple unique id 
  * @return {Number} 
  */
-const uniqueId = function () {
+const uniqueId = (function () {
 	let id = 0;
 	return function uniqueId() {
 		return id++;
 	};
-};
+}());
 
 
 /**
@@ -160,7 +172,7 @@ const uniqueId = function () {
  * @param  {*}          value      
  * @return {Array}            
  */
-const where = function (collection, names, value) {
+const where = function where(collection, names, value) {
 	names = names.split('.');
 
 	const items = collection;
@@ -190,7 +202,8 @@ const where = function (collection, names, value) {
 
 
 
-export { normalizeError, makeCommand, log, uniqueId, createSocket, where };
+
+export default { normalizeError, Command, log, uniqueId, createSocket, where };
 
 
 

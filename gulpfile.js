@@ -17,7 +17,7 @@ var handleError = function (err) {
 
 gulp.task('javascript', function () {
 	return gulp.src(config.js.src)
-		.pipe(babel())
+		.pipe(babel({ optional: ["es7.asyncFunctions"]}))
 		.on('error', handleError)
 		.pipe(gulp.dest(config.js.dest))
 });

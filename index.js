@@ -23,30 +23,15 @@ var _gulpUtil = require('gulp-util');
 
 var _gulpUtil2 = _interopRequireDefault(_gulpUtil);
 
-var _gulp = require('gulp');
+var _config2 = require('./config');
 
-var _gulp2 = _interopRequireDefault(_gulp);
+var _config3 = _interopRequireDefault(_config2);
 
-var PLUGIN_NAME = 'gulp-sublime';
-
-/**
- * The maximum number of times the socket will try to 
- * reconnect to Sublime Text. 
- * @type {Number}
- */
-var MAX_TRIES = 10;
-
-/**
- * The default port to connect to Sublime Text. 
- * @type {Number}
- */
-var PORT = 30048;
-
-/**
- * The timeout before the next reconnect 
- * @type {Number}
- */
-var RECONNECT_TIMEOUT = 2000;
+var PLUGIN_ID = _config3['default'].PLUGIN_ID;
+var PLUGIN_NAME = _config3['default'].PLUGIN_NAME;
+var PORT = _config3['default'].PORT;
+var RECONNECT_TIMEOUT = _config3['default'].RECONNECT_TIMEOUT;
+var MAX_TRIES = _config3['default'].MAX_TRIES;
 
 /**
  * Fires when a file changes. The file that initiated the 
@@ -109,7 +94,8 @@ var socketEventHandlers = {
 	connect: function onSocketConnected() {
 		(0, _utils.log)('Connected to server');
 
-		var handshake = { 'id': 'gulp' };
+		var id = 'gulp#' + PLUGIN_ID;
+		var handshake = { id: id };
 		this.send(handshake);
 
 		sublime.emit('connect');
@@ -124,13 +110,12 @@ var socketEventHandlers = {
  * A list of commands to run after a task has been finished. 
  *
  * Basically a way to accumulate data for all files for a single 
- * command. When a task is run the queue is reset. The commands are sent 
- * when a task finishes.
+ * command. The commands are sent when a task finishes and resets when any task starts.
  *
  * The commands are sent when a task finishes and is reset 
  * when a task is run. 
  * 
- * @type {Array}
+ * @type {Array.<Command>}
  */
 var commandQueue = [];
 
@@ -142,7 +127,7 @@ var connected = false;
 
 /**
  * The name of the current task being run. 
- * @type {}
+ * @type {String}
  */
 var currentTask = null;
 
@@ -151,18 +136,6 @@ var currentTask = null;
  * @type {String}
  */
 var taskInitiator = '';
-
-/**
- * Used by utils.log to check if we should log. 
- * @type {Boolean}
- */
-var dev = false;
-
-/**
- * The port to connect to Sublime Text on.
- * @type {Number}
- */
-var port = PORT;
 
 /**
  * The number of times we have tried to reconnect. 
@@ -211,26 +184,20 @@ var SublimeProto = {
   * @return {void}
   */
 	connect: function connect() {
-		var _this2 = this;
-
 		this.emit('connect:before');
 
-		var connect = function connect() {
-			_this2._connection = (0, _utils.createSocket)({
-				host: 'localhost',
-				port: port,
-				on: socketEventHandlers
-			});
-		};
-
 		if (connected) {
-			console.log('already connected, disconnecting');
 			// The socket will call _reconnect when it is closed
 			this.disconnect();
 		} else {
-			console.log('not connected, connecting');
-			connect();
+			this._connection = (0, _utils.createSocket)({
+				host: 'localhost',
+				port: _config3['default'].port,
+				on: socketEventHandlers
+			});
 		}
+
+		return this;
 	},
 
 	/**
@@ -244,8 +211,10 @@ var SublimeProto = {
 		var reconnectAfterDisconnect = arguments[1] === undefined ? true : arguments[1];
 
 		this.emit('disconnect:before');
+
 		var socket = this._connection;
 
+		// Adds a temporary listener
 		var listenerWrapper = function listenerWrapper() {
 			shouldReconnect = !!reconnectAfterDisconnect;
 
@@ -260,37 +229,44 @@ var SublimeProto = {
 		if (this._connection) {
 			this._connection.destroy();
 		}
+
+		return this;
+	},
+
+	config: function config(options) {
+		if (Number.isFinite(options.port)) {
+			_config3['default'].port = options.port;
+		}
+
+		if (options.gulp !== undefined) {
+			_config3['default'].gulp = options.gulp;
+		}
+
+		_config3['default'].dev = !!options.dev;
+
+		sublime.connect();
 	},
 
 	/**
-  * Configure settings
+  * Run a gulp command in Sublime Text. 
   * 
-  * @param  {Object}  options
-  * @param  {Number} options.port
+  * @param  {Object} command 
   * @return {void}
   */
-	config: function config() {
-		var options = arguments[0] === undefined ? {} : arguments[0];
+	run: function run(command) {
+		this.emit('run:before');
 
-		if (Number.isFinite(options.port)) {
-			port = options.port;
+		var args_id = command.data.args.id;
+		if (typeof args_id === 'string') {
+			command.data.args.id = args_id + '#' + _config3['default'].PLUGIN_ID;
 		}
 
-		_utils.log.dev = !!options.dev;
+		command.data.args.task_initiator = taskInitiator;
+		sublime._connection.send(command);
 
-		// if the port is the same then don't reconnect
-		if (port === PORT) {
-			return;
-		}
+		this.emit('run');
 
-		if ('shouldReconnect' in options) {
-			shouldReconnect = !!options.shouldReconnect;
-		}
-
-		if (shouldReconnect) {
-			// Reconnect using the new port
-			sublime._reconnect();
-		}
+		return this;
 	},
 
 	/**
@@ -299,11 +275,13 @@ var SublimeProto = {
   * @param  {Array} watchers 
   * @return {void}           
   */
-	watchers: function watchers(_watchers) {
-		_watchers.forEach(function (watcher) {
+	watchers: function watchers(watchers) {
+		watchers.forEach(function (watcher) {
 			watcher.removeListener('change', onWatchChange);
 			watcher.on('change', onWatchChange);
 		});
+
+		return this;
 	},
 
 	/**
@@ -314,7 +292,12 @@ var SublimeProto = {
   * @return {void}
   */
 	setStatus: function setStatus(id, status) {
-		sublime.run('set_status', { id: id, status: status }, { views: '<all>' });
+		var args = { id: id, status: status };
+		var init_args = { views: '<all>' };
+		var command = (0, _utils.Command)({ name: 'set_status', args: args, init_args: init_args });
+		sublime.run(command);
+
+		return this;
 	},
 
 	/**
@@ -323,34 +306,12 @@ var SublimeProto = {
   * @param  {String} id The id of the status message
   */
 	eraseStatus: function eraseStatus(id) {
-		sublime.run('erase_status', { id: id }, { views: '<all>' });
-	},
+		var args = { id: id };
+		var init_args = { views: '<all>' };
+		var command = (0, _utils.Command)({ name: 'erase_status', args: args, init_args: init_args });
+		sublime.run(command);
 
-	/**
-  * Run a gulp command in Sublime Text. 
-  * 
-  * `command` is a premade command object, or a command name. 
-  * 
-  * `args` is the arguments passed to the command's classes's 
-  * run function (in Sublime Text). 
-  * 
-  * `init_args` is the arguments for the command classes's __init__ arguments 
-  * 
-  * @param  {String|Object} command 
-  * @param  {Object} args               
-  * @param  {Object} init_args            
-  * @return {void}
-  */
-	run: function run(command, args, init_args) {
-		this.emit('run:before');
-
-		if (typeof command === 'string') {
-			command = (0, _utils.makeCommand)(command, args, init_args);
-		}
-
-		command.data.args.task_initiator = taskInitiator;
-		sublime._connection.send(command);
-		this.emit('run');
+		return this;
 	},
 
 	/**
@@ -364,7 +325,13 @@ var SublimeProto = {
 			var err = new Error('The ID passed is not of type String');
 			throw err;
 		}
-		sublime.run('erase_errors', { id: id }, { views: '<all>' });
+
+		var args = { id: id };
+		var init_args = { views: '<all>' };
+		var command = (0, _utils.Command)({ name: 'erase_errors', args: args, init_args: init_args });
+		sublime.run(command);
+
+		return this;
 	},
 
 	/**
@@ -389,12 +356,15 @@ var SublimeProto = {
 		}
 
 		error = (0, _utils.normalizeError)(error, id);
-		var file = error.file;
-		sublime.run('show_error', { id: id, error: error }, { views: [file] });
+
+		var args = { id: id, error: error };
+		var init_args = { views: [error.file] };
+		var command = (0, _utils.Command)({ name: 'show_error', args: args, init_args: init_args });
+		sublime.run(command);
+
+		return this;
 	},
 
-	// https://github.com/spalger/gulp-jshint/issues/50
-	// Error: map stream is not writable
 	/**
   * A JSHint reporter 
   * 
@@ -408,15 +378,17 @@ var SublimeProto = {
 
 		return (0, _mapStream2['default'])(function (file, cb) {
 
-			// Find the command to add more data to it
-			// The command will be run when the task ends
-			var command = (0, _utils.where)(commandQueue, 'uid', uid).unshift();
-
 			var report = file.jshint;
 
+			// Find the command to add more data to it
+			// The command will be run when the task ends
+			var command = (0, _utils.where)(commandQueue, 'uid', uid).shift();
+
+			// Create the command and add it to the queue if
+			// it doesn't already exist
 			if (!command) {
-				command = (0, _utils.makeCommand)('report', { reports: [report], id: id });
-				command.uid = uid;
+				var args = { reports: [report], id: id };
+				command = (0, _utils.Command)({ name: 'report', args: args, uid: uid });
 				commandQueue.push(command);
 			}
 
@@ -425,7 +397,6 @@ var SublimeProto = {
 			return cb(null, file);
 		});
 	}
-
 };
 
 // Turn `sublime` into an event emitter
@@ -434,24 +405,26 @@ var sublime = Object.create(SublimeProto);
 _events.EventEmitter.call(sublime);
 
 sublime.on('connect', function onSublimeConnect() {
-	_gulp2['default'].removeListener('task_start', onGulpTaskStart);
-	_gulp2['default'].removeListener('task_stop', onGulpTaskStop);
-	_gulp2['default'].on('task_start', onGulpTaskStart);
-	_gulp2['default'].on('task_stop', onGulpTaskStop);
+	var gulp = _config3['default'].gulp;
+
+	if (typeof gulp === 'object') {
+		gulp.removeListener('task_start', onGulpTaskStart);
+		gulp.removeListener('task_stop', onGulpTaskStop);
+		gulp.on('task_start', onGulpTaskStart);
+		gulp.on('task_stop', onGulpTaskStop);
+	}
 
 	reconnectTries = 0;
 	sublime.connected = connected = true;
 });
 
-sublime.on('disconnect', function () {
+sublime.on('disconnect', function onSublimeDisconnect() {
 	sublime.connected = connected = false;
 
 	if (shouldReconnect) {
 		sublime._reconnect();
 	}
 });
-
-sublime.connect();
 
 exports['default'] = sublime;
 module.exports = exports['default'];
