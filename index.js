@@ -34,19 +34,19 @@ var RECONNECT_TIMEOUT = _config3['default'].RECONNECT_TIMEOUT;
 var MAX_TRIES = _config3['default'].MAX_TRIES;
 
 /**
- * Fires when a file changes. The file that initiated the 
- * changes are stored in `taskInitiatior`. 
- * @param  {Event} event 
- * @return {void}       
+ * Fires when a file changes. The file that initiated the
+ * changes are stored in `taskInitiatior`.
+ * @param  {Event} event
+ * @return {void}
  */
 var onWatchChange = function onWatchChange(event) {
 	taskInitiator = event.path;
 };
 
 /**
- * Sets the current task and resets the command queue. 
- * @param  {Object} task 
- * @return {void}        
+ * Sets the current task and resets the command queue.
+ * @param  {Object} task
+ * @return {void}
  */
 var onGulpTaskStart = function onGulpTaskStart(task) {
 	if (task.task === 'default') {
@@ -58,9 +58,9 @@ var onGulpTaskStart = function onGulpTaskStart(task) {
 };
 
 /**
- * Runs the commands in the queue. 
- * @param  {Object} task 
- * @return {void}        
+ * Runs the commands in the queue.
+ * @param  {Object} task
+ * @return {void}
  */
 var onGulpTaskStop = function onGulpTaskStop(task) {
 	commandQueue.forEach(function (command) {
@@ -69,7 +69,7 @@ var onGulpTaskStop = function onGulpTaskStop(task) {
 };
 
 /**
- * Handlers for the socket events. 
+ * Handlers for the socket events.
  * @type {Object}
  */
 var socketEventHandlers = {
@@ -82,14 +82,14 @@ var socketEventHandlers = {
 		sublime.emit('disconnect');
 	},
 	/**
-  * Destroy the socket on error 
+  * Destroy the socket on error
   */
 	error: function onSocketError() {
 		(0, _utils.log)('Socket error');
 		this.destroy();
 	},
 	/**
-  * Connect to Sublime Text's server 
+  * Connect to Sublime Text's server
   */
 	connect: function onSocketConnected() {
 		(0, _utils.log)('Connected to server');
@@ -101,51 +101,51 @@ var socketEventHandlers = {
 		sublime.emit('connect');
 	},
 	/**
-  * Handle when data is received 
+  * Handle when data is received
   */
 	data: function onSocketReceived(data) {}
 };
 
 /**
- * A list of commands to run after a task has been finished. 
+ * A list of commands to run after a task has been finished.
  *
- * Basically a way to accumulate data for all files for a single 
+ * Basically a way to accumulate data for all files for a single
  * command. The commands are sent when a task finishes and resets when any task starts.
  *
- * The commands are sent when a task finishes and is reset 
- * when a task is run. 
- * 
+ * The commands are sent when a task finishes and is reset
+ * when a task is run.
+ *
  * @type {Array.<Command>}
  */
 var commandQueue = [];
 
 /**
- * Whether or not the socket is connected. 
+ * Whether or not the socket is connected.
  * @type {Boolean}
  */
 var connected = false;
 
 /**
- * The name of the current task being run. 
+ * The name of the current task being run.
  * @type {String}
  */
 var currentTask = null;
 
 /**
- * The name of the file that initiated a task via watch. 
+ * The name of the file that initiated a task via watch.
  * @type {String}
  */
 var taskInitiator = '';
 
 /**
- * The number of times we have tried to reconnect. 
+ * The number of times we have tried to reconnect.
  * @type {Number}
  */
 var reconnectTries = 0;
 
 /**
- * Whether or not to reconnect to Sublime Text after 
- * the socket is closed. 
+ * Whether or not to reconnect to Sublime Text after
+ * the socket is closed.
  * @type {Boolean}
  */
 var shouldReconnect = true;
@@ -155,10 +155,10 @@ var SublimeProto = {
 	connected: false,
 
 	/**
-  * Reconnect to sublime server 
+  * Reconnect to sublime server
   *
   * FIXME: Calling _reconnect or connect twice in a row causes
-  * two sockets to connect.  
+  * two sockets to connect.
   * @param  {Function} onConnectHandler
   * @return {void}
   */
@@ -179,7 +179,7 @@ var SublimeProto = {
 
 	/**
   * Connect the server to sublime. The previous socket will
-  * be disconnected. 
+  * be disconnected.
   *
   * @return {void}
   */
@@ -201,10 +201,10 @@ var SublimeProto = {
 	},
 
 	/**
-  * Disconnect the socket from Sublime Text's server. 
-  * Never call sublime.connect from the onDisconnect listener. 
-  * 
-  * @param {Function} onDisconnect 
+  * Disconnect the socket from Sublime Text's server.
+  * Never call sublime.connect from the onDisconnect listener.
+  *
+  * @param {Function} onDisconnect
   * @return {void}
   */
 	disconnect: function disconnect(onDisconnect) {
@@ -245,12 +245,14 @@ var SublimeProto = {
 		_config3['default'].dev = !!options.dev;
 
 		sublime.connect();
+
+		return this;
 	},
 
 	/**
-  * Run a gulp command in Sublime Text. 
-  * 
-  * @param  {Object} command 
+  * Run a gulp command in Sublime Text.
+  *
+  * @param  {Object} command
   * @return {void}
   */
 	run: function run(command) {
@@ -270,10 +272,10 @@ var SublimeProto = {
 	},
 
 	/**
-  * Used for setting the name of the file that initiated 
-  * the task. 
-  * @param  {Array} watchers 
-  * @return {void}           
+  * Used for setting the name of the file that initiated
+  * the task.
+  * @param  {Array} watchers
+  * @return {void}
   */
 	watchers: function watchers(watchers) {
 		watchers.forEach(function (watcher) {
@@ -285,10 +287,10 @@ var SublimeProto = {
 	},
 
 	/**
-  * Set a status message in Sublime 
-  * 
+  * Set a status message in Sublime
+  *
   * @param  {String} id     The id of the status message
-  * @param  {String} status The message that will be shown 
+  * @param  {String} status The message that will be shown
   * @return {void}
   */
 	setStatus: function setStatus(id, status) {
@@ -301,8 +303,8 @@ var SublimeProto = {
 	},
 
 	/**
-  * Erase a status message in Sublime Text's status bar 
-  * 
+  * Erase a status message in Sublime Text's status bar
+  *
   * @param  {String} id The id of the status message
   */
 	eraseStatus: function eraseStatus(id) {
@@ -317,7 +319,7 @@ var SublimeProto = {
 	/**
   * Hide the gutters, highlighted text lines, and error status messages
   *
-  * @param  {String} id  The id of the status message to erase 
+  * @param  {String} id  The id of the status message to erase
   * @return {void}
   */
 	eraseErrors: function eraseErrors(id) {
@@ -335,16 +337,16 @@ var SublimeProto = {
 	},
 
 	/**
-  * Runs the gulp command "show_error". The command will do several things 
-  * based on if they have been enabled in the package settings. 
+  * Runs the gulp command "show_error". The command will do several things
+  * based on if they have been enabled in the package settings.
   *
   * - Show a popup message in a view with the same open file that caused the error
-  * - Show a gutter icon next to the line the caused the error 
-  * - Show an error message in the status bar 
-  * - Scroll to the line where the error occured 
-  * 
+  * - Show a gutter icon next to the line the caused the error
+  * - Show an error message in the status bar
+  * - Scroll to the line where the error occured
+  *
   * @param  {String} id   The id to associate with the status message
-  * @param  {Error}  err  The gulp error object 
+  * @param  {Error}  err  The gulp error object
   * @return {void}
   */
 	showError: function showError(error) {
@@ -366,8 +368,8 @@ var SublimeProto = {
 	},
 
 	/**
-  * A JSHint reporter 
-  * 
+  * A JSHint reporter
+  *
   * @param  {String} id
   * @return {map-stream}
   */

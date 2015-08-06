@@ -6,7 +6,7 @@ import config from './config';
 
 
 /**
- * The end of message 
+ * The end of message
  * @type {String}
  */
 const END_OF_MESSAGE = '\n';
@@ -17,10 +17,10 @@ const socket_send = function socket_send(data) {
 };
 
 /**
- * Creates and returns a socket 
- * 
- * @param {Object}   options 
- * @return {Object} 
+ * Creates and returns a socket
+ *
+ * @param {Object}   options
+ * @return {Object}
  */
 const createSocket = function createSocket(options) {
 	const port = options.port;
@@ -34,7 +34,7 @@ const createSocket = function createSocket(options) {
 	socket.setEncoding('utf8');
 	socket.send = socket_send;
 
-	// Add event handlers to the socket 
+	// Add event handlers to the socket
 	if (typeof options.on === 'object') {
 		for (let eventName in options.on) {
 			if ( ! options.on.hasOwnProperty(eventName)) {
@@ -51,24 +51,37 @@ const createSocket = function createSocket(options) {
 
 /**
  * awd
- * @param  {Error}  err 
- * @param  {String} id  
- * @return {Object}    
+ * @param  {Error}  err
+ * @param  {String} id
+ * @return {Object}
  */
 const normalizeError = function normalizeError(err, id) {
 	const pluginName = err.plugin || id;
-	const line = (err.line || err.lineNumber) - 1;
+	const { loc } = err;
+
+	let line = (err.line || err.lineNumber);
+	let column = err.column;
+
+	// Babeljs, why you do dis??
+	if (loc && typeof loc === 'object') {
+		line = loc.line;
+		column = loc.column;
+	}
+
+	line   = (typeof line === 'number')   ? line : null;
+	column = (typeof column === 'number') ? column : null;
+
 	let file = err.file || err.fileName;
 	let message = err.message;
 
-	// Just in case any error message (such as autoprefixer) produce an 
-	// extremely long error message 
+	// Just in case any error message (such as autoprefixer) produce an
+	// extremely long error message
 	if (message.length > 2000) {
 		message = message.substring(0, 2000);
 	}
-	
-	// Fix the case where the plugin errored in gulp-sass and the file 
-	// being processed is an entry file 
+
+	// Fix the case where the plugin errored in gulp-sass and the file
+	// being processed is an entry file
 	if (file === 'stdin' && pluginName === 'gulp-sass') {
 		file = err.message.split('\n')[0];
 	}
@@ -80,39 +93,41 @@ const normalizeError = function normalizeError(err, id) {
 
 	const error = {
 		plugin_name: pluginName,
-		
+
 		// The directory path (excludes the basename)
 		file_path: dirname,
-		
-		// The root name of the file with the extension 
+
+		// The root name of the file with the extension
 		file_name: basename,
 
 		// The root name of the file (without the extension)
 		file_base_name: rootName,
-		
-		// The file extension 
+
+		// The file extension
 		file_extension: ext,
 		file_ext: ext,
 
-		// The absolute file path 
-		file: file,
-		
-		line: line,
+		// The absolute file path
+		file,
 
-		message: message,
+		line,
+		column,
+
+		message,
+
 	};
-	
+
 	return error;
 };
 
 /**
- * Packages up command information into one object 
- * 
- * @param  {Object} options 
+ * Packages up command information into one object
+ *
+ * @param  {Object} options
  * @param  {String} options.name
- * @param  {Object} options.args         
- * @param  {Object} options.init_args    
- * @return {Object} 
+ * @param  {Object} options.args
+ * @param  {Object} options.init_args
+ * @return {Object}
  */
 const Command = function Command(options) {
 
@@ -136,21 +151,21 @@ const Command = function Command(options) {
 
 
 /**
- * Log things to the console 
- * @return {void} 
+ * Log things to the console
+ * @return {void}
  */
 const log = function log() {
 	if ( ! config.dev) {
 		return;
 	}
-	
+
 	console.log.apply(console, arguments);
 };
 
 
 /**
- * Return a simple unique id 
- * @return {Number} 
+ * Return a simple unique id
+ * @return {Number}
  */
 const uniqueId = (function () {
 	let id = 0;
@@ -163,14 +178,14 @@ const uniqueId = (function () {
 /**
  * Examples:
  *
- * 		var a = [{id: 1, name: 'Max'}, {id: 2, name: 'John'}, {id: 3, name: 'John'}]; 
- * 		var results = where(a, 'name', 'John'); 
- * 		console.log(results) // [{id: 2, name: 'John'}, {id: 3, name: 'John'}] 
+ * 		var a = [{id: 1, name: 'Max'}, {id: 2, name: 'John'}, {id: 3, name: 'John'}];
+ * 		var results = where(a, 'name', 'John');
+ * 		console.log(results) // [{id: 2, name: 'John'}, {id: 3, name: 'John'}]
  *
- * @param  {Collection} collection 
- * @param  {String}     names      
- * @param  {*}          value      
- * @return {Array}            
+ * @param  {Collection} collection
+ * @param  {String}     names
+ * @param  {*}          value
+ * @return {Array}
  */
 const where = function where(collection, names, value) {
 	names = names.split('.');
@@ -186,7 +201,7 @@ const where = function where(collection, names, value) {
 		let j = 0;
 
 		while (comparator !== undefined && comparator !== null) {
-			// With every while loop, comparator will equal the next property 
+			// With every while loop, comparator will equal the next property
 			let propertyName = names[j];
 			comparator = comparator[propertyName];
 			j++;

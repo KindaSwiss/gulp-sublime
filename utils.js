@@ -21,7 +21,7 @@ var _config = require('./config');
 var _config2 = _interopRequireDefault(_config);
 
 /**
- * The end of message 
+ * The end of message
  * @type {String}
  */
 var END_OF_MESSAGE = '\n';
@@ -32,10 +32,10 @@ var socket_send = function socket_send(data) {
 };
 
 /**
- * Creates and returns a socket 
- * 
- * @param {Object}   options 
- * @return {Object} 
+ * Creates and returns a socket
+ *
+ * @param {Object}   options
+ * @return {Object}
  */
 var createSocket = function createSocket(options) {
 	var port = options.port;
@@ -66,13 +66,26 @@ var createSocket = function createSocket(options) {
 
 /**
  * awd
- * @param  {Error}  err 
- * @param  {String} id  
- * @return {Object}    
+ * @param  {Error}  err
+ * @param  {String} id
+ * @return {Object}
  */
 var normalizeError = function normalizeError(err, id) {
 	var pluginName = err.plugin || id;
-	var line = (err.line || err.lineNumber) - 1;
+	var loc = err.loc;
+
+	var line = err.line || err.lineNumber;
+	var column = err.column;
+
+	// Babeljs, why you do dis??
+	if (loc && typeof loc === 'object') {
+		line = loc.line;
+		column = loc.column;
+	}
+
+	line = typeof line === 'number' ? line : null;
+	column = typeof column === 'number' ? column : null;
+
 	var file = err.file || err.fileName;
 	var message = err.message;
 
@@ -113,21 +126,23 @@ var normalizeError = function normalizeError(err, id) {
 		file: file,
 
 		line: line,
+		column: column,
 
 		message: message
+
 	};
 
 	return error;
 };
 
 /**
- * Packages up command information into one object 
- * 
- * @param  {Object} options 
+ * Packages up command information into one object
+ *
+ * @param  {Object} options
  * @param  {String} options.name
- * @param  {Object} options.args         
- * @param  {Object} options.init_args    
- * @return {Object} 
+ * @param  {Object} options.args
+ * @param  {Object} options.init_args
+ * @return {Object}
  */
 var Command = function Command(options) {
 
@@ -155,8 +170,8 @@ var Command = function Command(options) {
 };
 
 /**
- * Log things to the console 
- * @return {void} 
+ * Log things to the console
+ * @return {void}
  */
 var log = function log() {
 	if (!_config2['default'].dev) {
@@ -167,8 +182,8 @@ var log = function log() {
 };
 
 /**
- * Return a simple unique id 
- * @return {Number} 
+ * Return a simple unique id
+ * @return {Number}
  */
 var uniqueId = (function () {
 	var id = 0;
@@ -180,14 +195,14 @@ var uniqueId = (function () {
 /**
  * Examples:
  *
- * 		var a = [{id: 1, name: 'Max'}, {id: 2, name: 'John'}, {id: 3, name: 'John'}]; 
- * 		var results = where(a, 'name', 'John'); 
- * 		console.log(results) // [{id: 2, name: 'John'}, {id: 3, name: 'John'}] 
+ * 		var a = [{id: 1, name: 'Max'}, {id: 2, name: 'John'}, {id: 3, name: 'John'}];
+ * 		var results = where(a, 'name', 'John');
+ * 		console.log(results) // [{id: 2, name: 'John'}, {id: 3, name: 'John'}]
  *
- * @param  {Collection} collection 
- * @param  {String}     names      
- * @param  {*}          value      
- * @return {Array}            
+ * @param  {Collection} collection
+ * @param  {String}     names
+ * @param  {*}          value
+ * @return {Array}
  */
 var where = function where(collection, names, value) {
 	names = names.split('.');

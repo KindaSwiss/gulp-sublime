@@ -23,6 +23,9 @@ var jshint  = require('gulp-jshint');
 var sublime = require('gulp-sublime');
 var plumber = require('gulp-plumber');
 
+// Pass in gulp 
+sublime.config({ gulp: gulp });
+
 var handleError = function (taskName) {
 	return { 
 		errorHandler: function (err) {
@@ -53,7 +56,7 @@ gulp.task('javascript', function() {
 
 In a error handler, whether it be .on('error') or plumber handler, pass the error object to `sublime.showError` as well as the task name. The task name is used as the ID for the status message and gutter icon regions. If the incorrect task name is passed, the errors status messages and icons will not be erased. 
 
-For the reporter, the first argument to `sublime.reporter` is used as the name and identifier of the results tab. The results tab will be overwritten every time the reporter is run. 
+The first argument to `sublime.reporter` is used as the name and identifier of the results tab. The results tab will be overwritten every time the reporter is run. 
 
 ## JSX error
 ![react error example](https://github.com/anthonykoch/gulp-sublime/blob/master/images/jsx-error.png)
