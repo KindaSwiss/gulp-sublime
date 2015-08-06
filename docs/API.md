@@ -7,8 +7,6 @@
 
 Sends the error to Sublime Text. 
 
-Using .on('error')
-
 ```Javascript
 var errorHandler = function (err) {
 	sublime.showError(err, 'sass');
@@ -17,12 +15,12 @@ var errorHandler = function (err) {
 
 gulp.task('sass', function (done) {
 	
-	return gulp.src(paths.sass)
+	return gulp.src(config.src)
 		.pipe(sass())
 		.on('error', errorHandler)
 		.pipe(autoprefixer())
 		.on('error', errorHandler)
-		.pipe(gulp.dest(paths.sassDest))
+		.pipe(gulp.dest(config.dest))
 });
 
 ```
@@ -81,34 +79,6 @@ sublime.eraseErrors('Sass')
 Type: `String`
 
 The ID associated with the errors, which should be the task name. 
-
-
-
-<br>
-
-
-
-### sublime.reporter(id)
-
-A reporter meant solely for JSHint. The when run, it will open a new tab in Sublime with the results appearing and functioning the same as "Find in Files" results. If the tab has already been created, the results will be updated. The string passed is used to identify the tab so that previous results are overwritten, rather than opening a new tab every time it runs. 
-
-```Javascript
-gulp.task('js-hint', function (done) {
-	return gulp.src(paths.js).
-		pipe(jshint()).
-		pipe(sublime.reporter('jshint')).
-
-		// If using the jshint reporter then put it after sublime.reporter 
-		pipe(jshint.reporter('jshint-stylish'));
-});
-```
-
-
-### id
-
-Type: `String`
-
-The ID to associate with the reporter. The ID is used to identify a view so that only one is used per report. 
 
 
 
@@ -201,17 +171,24 @@ The ID of the status bar message to be removed.
 
 ### sublime.config(options)
 
-Configures the port on which to connect to Sublime Text. 
+Configures the port on which to connect to Sublime Text. The gulp object must be passed in order for errors to be erased. 
 
 ```Javascript
 var gulp = require('gulp');
 var sublime = require('gulp-sublime');
-sublime.config({ port: 12345 })
+sublime.config({ gulp: gulp, port: 12345 })
 ```
 
 #### options
 
 Type: `Object`
+
+#### options.gulp
+
+Type: `Object`
+
+The gulp object.
+
 
 #### options.port (optional)
 

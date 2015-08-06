@@ -192,45 +192,5 @@ var uniqueId = (function () {
 	};
 })();
 
-/**
- * Examples:
- *
- * 		var a = [{id: 1, name: 'Max'}, {id: 2, name: 'John'}, {id: 3, name: 'John'}];
- * 		var results = where(a, 'name', 'John');
- * 		console.log(results) // [{id: 2, name: 'John'}, {id: 3, name: 'John'}]
- *
- * @param  {Collection} collection
- * @param  {String}     names
- * @param  {*}          value
- * @return {Array}
- */
-var where = function where(collection, names, value) {
-	names = names.split('.');
-
-	var items = collection;
-	var length = items.length;
-	var matches = [];
-	var i = 0;
-
-	for (; i < length; i++) {
-		var item = items[i];
-		var comparator = item;
-		var j = 0;
-
-		while (comparator !== undefined && comparator !== null) {
-			// With every while loop, comparator will equal the next property
-			var propertyName = names[j];
-			comparator = comparator[propertyName];
-			j++;
-
-			if (comparator === value) {
-				matches.push(item);
-				break;
-			}
-		}
-	}
-	return matches;
-};
-
-exports['default'] = { normalizeError: normalizeError, Command: Command, log: log, uniqueId: uniqueId, createSocket: createSocket, where: where };
+exports['default'] = { normalizeError: normalizeError, Command: Command, log: log, uniqueId: uniqueId, createSocket: createSocket };
 module.exports = exports['default'];

@@ -6,27 +6,27 @@ Object.defineProperty(exports, '__esModule', {
 var PLUGIN_NAME = 'gulp-sublime';
 
 /**
- * The maximum number of times the socket will try to 
- * reconnect to Sublime Text. 
+ * The maximum number of times the socket will try to
+ * reconnect to Sublime Text.
  * @type {Number}
  */
 var MAX_TRIES = 10;
 
 /**
- * The default port to connect to Sublime Text. 
+ * The default port to connect to Sublime Text.
  * @type {Number}
  */
 var PORT = 30048;
 
 /**
- * The timeout before the next reconnect 
+ * The timeout before the next reconnect
  * @type {Number}
  */
 var RECONNECT_TIMEOUT = 2000;
 
 /**
  * Used to prefix the task names so that there are no collisions
- * with other gulpfiles running. 
+ * with other gulpfiles running.
  * @type {String}
  */
 var PLUGIN_ID = (function () {

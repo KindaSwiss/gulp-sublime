@@ -5,27 +5,27 @@
 const PLUGIN_NAME = 'gulp-sublime';
 
 /**
- * The maximum number of times the socket will try to 
- * reconnect to Sublime Text. 
+ * The maximum number of times the socket will try to
+ * reconnect to Sublime Text.
  * @type {Number}
  */
 const MAX_TRIES = 10;
 
 /**
- * The default port to connect to Sublime Text. 
+ * The default port to connect to Sublime Text.
  * @type {Number}
  */
 const PORT = 30048;
 
 /**
- * The timeout before the next reconnect 
+ * The timeout before the next reconnect
  * @type {Number}
  */
 const RECONNECT_TIMEOUT = 2000;
 
 /**
  * Used to prefix the task names so that there are no collisions
- * with other gulpfiles running. 
+ * with other gulpfiles running.
  * @type {String}
  */
 const PLUGIN_ID = (function () {

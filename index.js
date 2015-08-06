@@ -34,16 +34,6 @@ var RECONNECT_TIMEOUT = _config3['default'].RECONNECT_TIMEOUT;
 var MAX_TRIES = _config3['default'].MAX_TRIES;
 
 /**
- * Fires when a file changes. The file that initiated the
- * changes are stored in `taskInitiatior`.
- * @param  {Event} event
- * @return {void}
- */
-var onWatchChange = function onWatchChange(event) {
-	taskInitiator = event.path;
-};
-
-/**
  * Sets the current task and resets the command queue.
  * @param  {Object} task
  * @return {void}
@@ -54,18 +44,6 @@ var onGulpTaskStart = function onGulpTaskStart(task) {
 	}
 	currentTask = task.task;
 	sublime.eraseErrors(task.task);
-	commandQueue = [];
-};
-
-/**
- * Runs the commands in the queue.
- * @param  {Object} task
- * @return {void}
- */
-var onGulpTaskStop = function onGulpTaskStop(task) {
-	commandQueue.forEach(function (command) {
-		sublime.run(command);
-	});
 };
 
 /**
@@ -107,19 +85,6 @@ var socketEventHandlers = {
 };
 
 /**
- * A list of commands to run after a task has been finished.
- *
- * Basically a way to accumulate data for all files for a single
- * command. The commands are sent when a task finishes and resets when any task starts.
- *
- * The commands are sent when a task finishes and is reset
- * when a task is run.
- *
- * @type {Array.<Command>}
- */
-var commandQueue = [];
-
-/**
  * Whether or not the socket is connected.
  * @type {Boolean}
  */
@@ -130,12 +95,6 @@ var connected = false;
  * @type {String}
  */
 var currentTask = null;
-
-/**
- * The name of the file that initiated a task via watch.
- * @type {String}
- */
-var taskInitiator = '';
 
 /**
  * The number of times we have tried to reconnect.
@@ -263,25 +222,9 @@ var SublimeProto = {
 			command.data.args.id = args_id + '#' + _config3['default'].PLUGIN_ID;
 		}
 
-		command.data.args.task_initiator = taskInitiator;
 		sublime._connection.send(command);
 
 		this.emit('run');
-
-		return this;
-	},
-
-	/**
-  * Used for setting the name of the file that initiated
-  * the task.
-  * @param  {Array} watchers
-  * @return {void}
-  */
-	watchers: function watchers(watchers) {
-		watchers.forEach(function (watcher) {
-			watcher.removeListener('change', onWatchChange);
-			watcher.on('change', onWatchChange);
-		});
 
 		return this;
 	},
@@ -365,39 +308,6 @@ var SublimeProto = {
 		sublime.run(command);
 
 		return this;
-	},
-
-	/**
-  * A JSHint reporter
-  *
-  * @param  {String} id
-  * @return {map-stream}
-  */
-	reporter: function reporter() {
-		var id = arguments[0] === undefined ? currentTask : arguments[0];
-
-		var uid = (0, _utils.uniqueId)();
-
-		return (0, _mapStream2['default'])(function (file, cb) {
-
-			var report = file.jshint;
-
-			// Find the command to add more data to it
-			// The command will be run when the task ends
-			var command = (0, _utils.where)(commandQueue, 'uid', uid).shift();
-
-			// Create the command and add it to the queue if
-			// it doesn't already exist
-			if (!command) {
-				var args = { reports: [report], id: id };
-				command = (0, _utils.Command)({ name: 'report', args: args, uid: uid });
-				commandQueue.push(command);
-			}
-
-			command.data.args.reports.push(report);
-
-			return cb(null, file);
-		});
 	}
 };
 
@@ -411,9 +321,7 @@ sublime.on('connect', function onSublimeConnect() {
 
 	if (typeof gulp === 'object') {
 		gulp.removeListener('task_start', onGulpTaskStart);
-		gulp.removeListener('task_stop', onGulpTaskStop);
 		gulp.on('task_start', onGulpTaskStart);
-		gulp.on('task_stop', onGulpTaskStop);
 	}
 
 	reconnectTries = 0;

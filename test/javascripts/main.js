@@ -1,5 +1,14 @@
 'use strict';
 
-wwtf;
+
+
+function render() {
+	return (
+		<div className={}>
+
+		</div>
+	);
+}
+
 
 
