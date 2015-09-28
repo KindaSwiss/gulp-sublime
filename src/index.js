@@ -68,24 +68,6 @@ const defaultSettings = (function () {
 
 
 
-/**
-* The name of the current task being run.
-* @type {String}
-*/
-let currentTask = null;
-
-/**
- * Sets the current task
- * @param  {Object} task
- * @return {void}
- */
-function onGulpTaskStart(task) {
-	currentTask = task.task;
-};
-
-
-
-
 const SublimeProto = {
 	_connection: null,
 	connected: false,
@@ -234,9 +216,7 @@ const SublimeProto = {
 
 		if (util.isObject(gulp)) {
 			gulp.removeListener('task_start', this.onGulpTaskStart);
-			gulp.removeListener('task_start', onGulpTaskStart);
 			gulp.on('task_start', this.onGulpTaskStart);
-			gulp.on('task_start', onGulpTaskStart);
 		}
 
 		return this;
@@ -331,7 +311,7 @@ const SublimeProto = {
 	 * @param  {Error}  err  The gulp error object
 	 * @return {void}
 	 */
-	showError: function showError(err, id=currentTask) {
+	showError: function showError(err, id) {
 		if (typeof id !== 'string') {
 			let err = new Error('The ID passed is not of type String');
 			throw err;
@@ -346,6 +326,12 @@ const SublimeProto = {
 		return this;
 	},
 
+	/**
+	 * Removes the errors associated with the task each time
+	 * the task starts.
+	 * @param  {Object} task
+	 * @return {void}
+	 */
 	onGulpTaskStart: function (task) {
 		this.eraseErrors(task.task);
 	},
@@ -359,7 +345,7 @@ assign(SublimeProto, EventEmitter.prototype);
 
 /**
  * Creates a sublime object
- * @return {Object} [description]
+ * @return {Object}
  */
 function Sublime(options={}) {
 	const result = Object.create(SublimeProto);
@@ -389,14 +375,13 @@ function Sublime(options={}) {
 	result.settings = settings;
 	result.log = logger(pluginConfig.get('pluginName'), settings);
 
-	Object.defineProperty(result 'construtor', { value: Sublime });
+	Object.defineProperty(result, 'constructor', { value: Sublime });
+
 
 	return result;
 }
 
 Sublime.prototype = SublimeProto;
-
-
 
 
 
@@ -422,7 +407,7 @@ function onSublimeConnect() {
 
 /**
  * Determine whether or not to reconnect
- * @return {} [description]
+ * @return {void}
  */
 function onSublimeDisconnect() {
 	const automaticReconnect = this.settings.get('automaticReconnect');

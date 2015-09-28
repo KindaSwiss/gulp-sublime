@@ -84,21 +84,6 @@ var defaultSettings = (function () {
 	});
 })();
 
-/**
-* The name of the current task being run.
-* @type {String}
-*/
-var currentTask = null;
-
-/**
- * Sets the current task
- * @param  {Object} task
- * @return {void}
- */
-function onGulpTaskStart(task) {
-	currentTask = task.task;
-};
-
 var SublimeProto = {
 	_connection: null,
 	connected: false,
@@ -255,9 +240,7 @@ var SublimeProto = {
 
 		if (_util2['default'].isObject(gulp)) {
 			gulp.removeListener('task_start', this.onGulpTaskStart);
-			gulp.removeListener('task_start', onGulpTaskStart);
 			gulp.on('task_start', this.onGulpTaskStart);
-			gulp.on('task_start', onGulpTaskStart);
 		}
 
 		return this;
@@ -352,9 +335,7 @@ var SublimeProto = {
   * @param  {Error}  err  The gulp error object
   * @return {void}
   */
-	showError: function showError(err) {
-		var id = arguments[1] === undefined ? currentTask : arguments[1];
-
+	showError: function showError(err, id) {
 		if (typeof id !== 'string') {
 			var _err = new Error('The ID passed is not of type String');
 			throw _err;
@@ -369,6 +350,12 @@ var SublimeProto = {
 		return this;
 	},
 
+	/**
+  * Removes the errors associated with the task each time
+  * the task starts.
+  * @param  {Object} task
+  * @return {void}
+  */
 	onGulpTaskStart: function onGulpTaskStart(task) {
 		this.eraseErrors(task.task);
 	}
@@ -379,7 +366,7 @@ var SublimeProto = {
 
 /**
  * Creates a sublime object
- * @return {Object} [description]
+ * @return {Object}
  */
 function Sublime() {
 	var options = arguments[0] === undefined ? {} : arguments[0];
@@ -410,7 +397,8 @@ function Sublime() {
 	result.onGulpTaskStart = result.onGulpTaskStart.bind(result);
 	result.settings = settings;
 	result.log = (0, _utils.logger)(_config2['default'].get('pluginName'), settings);
-	result.constructor = Sublime;
+
+	Object.defineProperty(result, 'constructor', { value: Sublime });
 
 	return result;
 }
@@ -440,7 +428,7 @@ function onSublimeConnect() {
 
 /**
  * Determine whether or not to reconnect
- * @return {} [description]
+ * @return {void}
  */
 function onSublimeDisconnect() {
 	var automaticReconnect = this.settings.get('automaticReconnect');
