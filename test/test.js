@@ -1,223 +1,163 @@
 'use strict';
-/*
-	Note: Run the tests with server in Sublime Text running 
-
+/**
+ * Note: Run the tests with server in Sublime Text running
  */
+
 var assert = require('chai').assert;
 var expect = require('chai').expect;
 
-
-var sublime = require('./../index');
-var utils = require('./../utils');
-
-// Tell sublime to not reconnect after disconnecting 
-sublime.config({
-	shouldReconnect: false,
+var sublime = require('./../index').config({
+	deferConnect: true, disableLogging: true
 });
+var Sublime = sublime.constructor;
 
-
-var PORT = 30048;
-
-
-
-describe('socket', function() {
-	var handshake = { "id": "gulp" };
-
-	var socketEvents = {
-		close: function onSocketClosed() {
-		},
-		error: function onSocketError() {
-			this.destroy();
-		},
-		connect: function onSocketConnected() {
-			this.send(handshake);
-		},
-		data: function onSocketReceived(data) {
-		}
-	}
-
-	var socket = utils.createSocket({
-		host: 'localhost', 
-		port: PORT, 
-		on: socketEvents
+describe('Sublime', function() {
+	it('It should be a function', function () {
+		expect(Sublime).to.be.an('function');
 	});
 
-	describe('It should be an object', function () {
-		expect(socket).to.be.an('object');
+	it('Should be return an object', function () {
+		expect(Sublime()).to.be.an('object');
 	});
 
-	describe('#send', function () {
-		it('Should be defined as a function', function () {
-			expect(socket)
-				.to.have.property('send')
-				.that.is.an('function');
-		});
+	it('The object returned should be an event emitter', function () {
+		expect(Sublime()).to.have.property('on').that.is.a.function;
+		expect(Sublime()).to.have.property('_events').that.is.a.object;
 	});
 
-	describe('#_events ', function() {
-
-		// Force _events properties to be arrays by adding multiple listeners 
-		socket.on('close', function () {})
-		socket.on('error', function () {})
-		socket.on('connect', function () {})
-		socket.on('data', function () {})
-
-		it('Should be an object', function() {
-			expect(socket).to.have.property('_events');
-		});
-
-		it('Should have property "close" that is an array and with the first item being equal to onSocketClose', function () {
-			expect(socket)
-				.to.have.deep.property('_events.close')
-				.that.is.a('array')
-				.with.deep.property('[0]')
-				.that.deep.equals(socketEvents.close);
-		});
-
-		it('Should have property "error" that is an array and with the first item being equal to onSocketError', function () {
-			expect(socket)
-				.to.have.deep.property('_events.error')
-				.that.is.a('array')
-				.with.deep.property('[0]')
-				.that.deep.equals(socketEvents.error);
-		});
-
-		it('Should have property "connect" that is an array and with the first item being equal to onSocketConnect', function () {
-			expect(socket)
-				.to.have.deep.property('_events.connect')
-				.that.is.a('array')
-				.with.deep.property('[0]')
-				.that.deep.equals(socketEvents.connect);
-		});
-
-		it('Should have property "data" that is an array and with the first item being equal to onSocketReceived', function () {
-			expect(socket)
-				.to.have.deep.property('_events.data')
-				.that.is.a('array')
-				.with.deep.property('[0]')
-				.that.deep.equals(socketEvents.data);
-		});
-
+	it('Should accept an object as an arguments that is assigned to the settings', function () {
+		expect(Sublime({ cool: 123 }).settings.get('cool')).to.equal(123);
 	});
 
-});
+	it('Should connect and disconnect without issues when using the callbacks', function (done) {
+		var sublime = Sublime({ disableLogging: true });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-describe('sublime', function() {
-	beforeEach(function () {
-		sublime.removeAllListeners('connect');
-		sublime.removeAllListeners('disconnect');
-	});
-
-	it('It should be an object', function () {
-		expect(sublime).to.be.an('object');
-	});
-
-	it('It should be an event emitter', function () {
-		expect(sublime)
-			.to.have.property('_events')
-			.that.is.a('object')
+		sublime.connect(function () {
+			sublime.disconnect(function () {
+				sublime.connect(function () {
+					sublime.disconnect(function () {
+						done();
+					});
+				});
+			});
+		});
 	});
 
 	describe('#connect', function () {
-
 		it('Should be defined as a function', function () {
-			expect(sublime)
+			expect(Sublime())
 				.to.have.property('connect')
 				.that.is.an('function');
 		});
 
+		it('Should call the callback function when the socket connects', function (done) {
+			var sublime = Sublime({ disableLogging: true });
+
+			sublime.connect(function () {
+				done();
+				sublime.disconnect();
+			});
+		});
 
 		it('Should assign a socket object to the "_connection" property of sublime', function () {
+			var sublime = Sublime({ disableLogging: true });
+
 			sublime.on('connect', function () {
 				expect(sublime)
 					.to.have.property('_connection')
 					.that.is.an('object');
+					sublime.disconnect();
 			});
-			sublime.connect();
-		});
 
-		it('Should assign true to the "connected" property of sublime', function (done) {
-			sublime.on('connect', function () {
-				expect(sublime)
-					.to.have.property('connected')
-					.to.be.true;
-				
-				done();
-			});
 			sublime.connect();
 		});
 	}); // #connect
 
-
 	describe('#disconnect', function () {
-
 		it('Should be defined as a function', function () {
 			expect(sublime)
 				.to.have.property('disconnect')
 				.that.is.an('function');
 		});
 
-		it('Should add the callback to socket._events and close the socket causing the callback to be run when the socket closes', function (done) {
-			sublime.on('connect', function () {
-				sublime.disconnect(function () {
-					done();
-				});
-			});
-			sublime.connect();
-		});
+		it('Should fire the callback passed when the socket is connected', function (done) {
+			var sublime = Sublime({ disableLogging: true });
 
-		it('Should assign false to the "connected" property on the sublime object', function (done) {
 			sublime.on('connect', function () {
 				sublime.disconnect(function () {
-					expect(sublime)
-						.to.have.property('connected')
-						.that.is.false;
 					done();
 				});
 			});
 
 			sublime.connect();
 		});
-	}); // #disconnect 
-
+	}); // #disconnect
 
 	describe('#showError', function () {
+		var sublime = Sublime({ disableLogging: true });
 
-		it('Should be defined as a function', function () {
-			expect(sublime)
-				.to.have.property('showError')
-				.that.is.an('function');
+		it('Should send a command with an "args", "init_args", and "name" property', function () {
+			var error = {
+				file: 'C:\\testing\\this\\thing.js',
+				line: 123,
+				column: 2
+			};
+			var id = 'sass';
+
+			sublime.on('run:before', function (command) {
+				var data = command.data;
+
+				expect(command).to.be.an.object;
+				expect(command).to.have.property('name').that.equals('show_error');
+
+				expect(data).to.be.a.object;
+				expect(data).to.have.property('args');
+				expect(data.init_args).to.have.property('views').to.be.a('array').to.include(error.file);
+			});
+
+			sublime.showError(error, id);
 		});
 
+		it('Should error when not passed an id', function () {
+			expect(sublime.showError.bind(sublime)).to.throw(/The ID passed is not of type String/);
+		});
 	}); // #showError
 
-	describe('#setStatus', function () {
-		it('Should be defined as function', function() {
-			expect(sublime)
-			.to.have.property('setStatus')
-			.that.is.a('function')
+	describe('event#run', function () {
+		var sublime = Sublime();
+
+		it('Should be emitted with command data', function () {
+			sublime.on('run:before', function (command) {
+				expect(command).to.be.object;
+			});
 		});
-	}); // #setStatus
 
-}); // sublime
+		sublime.showError({}, 'sass');
+	});
 
+	describe('event#connect', function () {
+		it('Should be fired after connecting', function (done) {
+			Sublime({ disableLogging: true }).on('connect', function () {
+				done();
+			}).connect(function () { this.disconnect(); });
+		});
+	});
 
+	describe('event#disconnect', function () {
+		it('Should be fired after disconnecting', function (done) {
+			Sublime({ disableLogging: true }).on('disconnect', function () {
+				done();
+			}).connect(function () { this.disconnect(); });
+		});
+	});
 
-
-
-
-
+	describe('event#receive', function () {
+		it('Should be fired after connecting and receiving the handshake', function (done) {
+			Sublime({ disableLogging: true }).on('receive', function (data) {
+				expect(data).to.be.object;
+				done();
+				this.disconnect();
+			}).connect();
+		});
+	});
+}); // Sublime

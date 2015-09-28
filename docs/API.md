@@ -1,5 +1,3 @@
-
-
 # API
 
 
@@ -45,13 +43,11 @@ gulp.task('sass', function () {
 });
 ```
 
-
 #### err
 
 Type: `Object`
 
 The error object. 
-
 
 #### id
 
@@ -73,7 +69,6 @@ Remove gutter icons and status messages associated with id.
 sublime.eraseErrors('Sass')
 ```
 
-
 #### id 
 
 Type: `String`
@@ -94,20 +89,17 @@ Run a gulp command in Sublime Text.
 sublime.run('set_status', { message: 'Delicious apple cider' }, { views: [file] })
 ```
 
-
 #### command
 
 Type: `String`
 
 The name of the command to run or a premade command object. 
 
-
 #### args
 
 Type: `Object`
 
 The arguments to pass to the command. 
-
 
 #### init_args
 
@@ -128,13 +120,11 @@ Sets a status bar message in *all* views.
 sublime.setStatus('Sass', 'Compiled!')
 ```
 
-
 #### id
 
 Type: `String`
 
 An ID to associate with the status message. Using the same status key will overwrite the previous status bar message. 
-
 
 #### message
 
@@ -157,7 +147,6 @@ sublime.eraseStatus('Sass')
 ```
 
 
-#### id
 
 Type: `String`
 
@@ -187,27 +176,56 @@ Type: `Object`
 
 Type: `Object`
 
-The gulp object.
+The gulp object. 
 
+#### options.disableLogging
 
-#### options.port (optional)
+Type: `Object`
 
-Type: `Integer`
+Default: `false`
+
+Whether or not messages will be logged to the console by the plugin. 
+
+#### options.deferConnect
+
+Type: `Object`
+
+Default: `false`
+
+Passing in `true` for this option when the module is being required will keep the module from automatically connecting. 
+
+#### options.port 
+
+Type: `Number`
 
 The port to connect to Sublime on.
 
+#### options.reconnectTimeout 
 
+Type: `Number`
+
+The amount of time to delay before trying to reconnect after disconnecting. 
+
+#### options.automaticReconnect
+
+Type: `Boolean`
+
+Default: `true`
+
+Whether or not to automatically reconnect after disconnecting. __Note:__ Calling .disconnect() will not cause the socket to reconnect even when this is option is set to true.
 
 <br>
 
 
 
-### sublime.connect()
+### sublime.connect(onConnect)
 
 Connect to the server. 
 
 ```Javascript
-sublime.connect();
+sublime.connect(function () {
+	// connected 
+});
 ```
 
 
@@ -217,13 +235,13 @@ sublime.connect();
 
 
 
-### sublime.disconnect(handler)
+### sublime.disconnect(onDisconnect)
 
 Disconnect from the server.  
 
 ```Javascript
 sublime.disconnect(function () {
-	// 
+	// disconnected 
 });
 ```
 
@@ -243,15 +261,14 @@ A function to listen to the `close` event of the socket.
 
 Emitted when the socket disconnects. 
 
-
 ### connect 
 
 Emitted when the socket connects. 
 
+### receive 
+
+Emitted when the socket receives data.
 
 ### run
 
-Emitted when a command is sent to Sublime. 
-
-
-
+Emitted when a command is being sent.

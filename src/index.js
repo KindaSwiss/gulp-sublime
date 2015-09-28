@@ -1,97 +1,87 @@
 'use strict';
-/* globals sublime */
 
-
-
-
-import { Command, normalizeError, createSocket, log } from './utils';
-import { EventEmitter } from 'events';
-import mapStream from 'map-stream';
+import { Command, normalizeError, createSocket, createUID, logger } from './utils';
+import Settings from './settings';
+import pluginConfig from './config';
 import assign from 'object-assign';
 import gutil from 'gulp-util';
-import config from './config';
+import { EventEmitter } from 'events';
+import util from 'util';
 
 
-
-
-const { PLUGIN_ID, PLUGIN_NAME, PORT, RECONNECT_TIMEOUT, MAX_TRIES } = config;
-
-/**
- * Sets the current task and resets the command queue.
- * @param  {Object} task
- * @return {void}
- */
-const onGulpTaskStart = function onGulpTaskStart(task) {
-	if (task.task === 'default') { return; }
-	currentTask = task.task;
-	sublime.eraseErrors(task.task);
-};
-
-/**
- * Handlers for the socket events.
- * @type {Object}
- */
-const socketEventHandlers = {
-	/**
-	 * Handle sublime._connection socket close event.
-	 *
-	 */
-	close: function onSocketClosed () {
-		log('Connection closed');
-		sublime.emit('disconnect');
-	},
-	/**
-	 * Destroy the socket on error
-	 */
-	error: function onSocketError () {
-		log('Socket error');
-		this.destroy();
-	},
-	/**
-	 * Connect to Sublime Text's server
-	 */
-	connect: function onSocketConnected () {
-		log('Connected to server');
-
-		const id = "gulp#" + PLUGIN_ID;
-		const handshake = { id };
-		this.send(handshake);
-
-		sublime.emit('connect');
-	},
-	/**
-	 * Handle when data is received
-	 */
-	data: function onSocketReceived(data) {
-		// const received = JSON.parse(data.toString());
-	}
-};
 
 
 /**
- * Whether or not the socket is connected.
- * @type {Boolean}
+ * Default configuration options for a sublime object
+ * @return {Object}
  */
-let connected = false;
+const defaultSettings = (function () {
+	/**
+	 * Whether or not to connect with the module is required
+	 * @type {Boolean}
+	 */
+	const deferConnect = false;
+
+	/**
+	 * The maximum number of times the socket will try to
+	 * reconnect to the server.
+	 * @type {Number}
+	 */
+	const maxTries = 30;
+
+	/**
+	 * The default port to connect to the server.
+	 * @type {Number}
+	 */
+	const port = 30048;
+
+	/**
+	 * The timeout before the next reconnect occurs.
+	 * @type {Number}
+	 */
+	const reconnectTimeout = 2000;
+
+	/**
+	 * Whether or not to automatically reconnect after disconnecting.
+	 * Note: Calling .disconnect() will cause the socket to remain
+	 * disconnected, even if this option is set to true.
+	 * @type {Boolean}
+	 */
+	const automaticReconnect = true;
+
+	/**
+	 * When true, messages will be logged to the console.
+	 * @type {Boolean}
+	 */
+	const disableLogging = false;
+
+	return Object.freeze({
+		automaticReconnect,
+		disableLogging,
+		deferConnect,
+		maxTries,
+		port,
+		reconnectTimeout,
+	});
+}());
+
+
+
 
 /**
- * The name of the current task being run.
- * @type {String}
- */
+* The name of the current task being run.
+* @type {String}
+*/
 let currentTask = null;
 
 /**
- * The number of times we have tried to reconnect.
- * @type {Number}
+ * Sets the current task
+ * @param  {Object} task
+ * @return {void}
  */
-let reconnectTries = 0;
-
-/**
- * Whether or not to reconnect to Sublime Text after
- * the socket is closed.
- * @type {Boolean}
- */
-let shouldReconnect = true;
+function onGulpTaskStart(task) {
+	currentTask = task.task;
+};
 
 
 
@@ -101,120 +91,186 @@ const SublimeProto = {
 	connected: false,
 
 	/**
+	* When set to true, the socket will remain disconnected
+	* rather than trying to reconnect.
+	* @type {Boolean}
+	*/
+	_remainDisconnected: false,
+
+	/**
+	* The number of times we have tried to reconnect.
+	* @type {Number}
+	*/
+	_reconnectTries: 0,
+
+	/**
 	 * Reconnect to sublime server
 	 *
-	 * FIXME: Calling _reconnect or connect twice in a row causes
-	 * two sockets to connect.
 	 * @param  {Function} onConnectHandler
 	 * @return {void}
 	 */
 	_reconnect: function _reconnect() {
-		reconnectTries++;
-		log('Reconnecting, attempt %s', reconnectTries);
+		this._reconnectTries++;
 
-		if (reconnectTries > MAX_TRIES) {
-			return log('Max reconnect tries exceeded');
+		if (this._reconnectTries > this.settings.get('maxTries')) {
+			this.log('Max reconnect tries exceeded');
+			return;
 		}
 
 		setTimeout(() => {
 			this.connect();
-		}, RECONNECT_TIMEOUT);
+		}, this.settings.get('reconnectTimeout'));
 	},
 
 	/**
-	 * Connect the server to sublime. The previous socket will
+	 * Creates a connection to the server. The previous socket will
 	 * be disconnected.
 	 *
+	 * When connected, subsequent calls are ignored. The socket
+	 * must be manually disconnected by calling .disconnect().
+	 * @param  {Function} onConnect
 	 * @return {void}
 	 */
-	connect: function connect() {
-		this.emit('connect:before');
+	connect: function connect(onConnect) {
+		// Are we still trying to connect from the previous .connect() call?
+		const connecting = (this._connection !== null && this._connection._connecting) ? true : false;
+		const connected = (this._connection !== null && this._connection.connected) ? true : false;
 
-		if (connected) {
-			// The socket will call _reconnect when it is closed
-			this.disconnect();
-		} else {
+		this.emit('connect:before');
+		this._remainDisconnected = false;
+
+		/**
+		 * Handlers for the socket events.
+		 * @type {Object}
+		 */
+		const socketEventHandlers = {
+			/**
+			 * Handle socket close event.
+			 */
+			close: () => {
+				this.log('Disconnected');
+				this._connection.connected = false;
+				this.emit('disconnect');
+			},
+			/**
+			 * Destroy the socket on error
+			 */
+			error: () => {
+				this.log(gutil.colors.yellow('Socket error'));
+				this._connection.destroy();
+			},
+			/**
+			 * Sends a handshake on connect.
+			 */
+			connect: () => {
+				this.log('Connected');
+				this._connection.send({ id: `gulp#${pluginConfig.get('pluginID')}` }); // Send handshake
+				this._connection.connected = true;
+				this.emit('connect');
+
+				if (typeof onConnect === 'function') {
+					onConnect.call(this);
+					onConnect = null;
+				}
+			},
+			/**
+			 * Handle when data is received
+			 */
+			data: (data) => {
+				let received;
+
+				try {
+					received = JSON.parse(data.toString());
+				} catch (err) {
+					this.log('Error parsing socket data:', err);
+				}
+
+				this.emit('receive', received);
+			}
+		};
+
+		if ( ! connected && ! connecting) {
 			this._connection = createSocket({
 				host: 'localhost',
-				port: config.port,
-				on: socketEventHandlers
+				port: this.settings.get('port'),
+				events: socketEventHandlers
 			});
+			this._connection.connected = false;
 		}
 
 		return this;
 	},
 
 	/**
-	 * Disconnect the socket from Sublime Text's server.
-	 * Never call sublime.connect from the onDisconnect listener.
-	 *
-	 * @param {Function} onDisconnect
+	 * Disconnect the socket from the server.
+	 * @param  {Function} onDisconnect
 	 * @return {void}
 	 */
-	disconnect: function disconnect(onDisconnect, reconnectAfterDisconnect = true) {
-		this.emit('disconnect:before');
-
+	disconnect: function disconnect(onDisconnect) {
 		const socket = this._connection;
-
-		// Adds a temporary listener
 		const listenerWrapper = () => {
-			shouldReconnect = !!reconnectAfterDisconnect;
-
 			if (typeof onDisconnect === 'function') {
-				onDisconnect();
+				onDisconnect.call(this);
+				onDisconnect = null;
 			}
 
 			socket.removeListener('close', listenerWrapper);
 		};
-		this._connection.on('close', listenerWrapper);
+
+		this.emit('disconnect:before');
+		this._remainDisconnected = true;
 
 		if (this._connection) {
+			this._connection.on('close', listenerWrapper);
 			this._connection.destroy();
 		}
 
 		return this;
 	},
 
-	config: function (options) {
-		if (Number.isFinite(options.port)) {
-			config.port = options.port;
+	config: function (options={}) {
+		const { gulp } = options;
+		this.settings.set(options);
+
+		if (util.isObject(gulp)) {
+			gulp.removeListener('task_start', this.onGulpTaskStart);
+			gulp.removeListener('task_start', onGulpTaskStart);
+			gulp.on('task_start', this.onGulpTaskStart);
+			gulp.on('task_start', onGulpTaskStart);
 		}
-
-		if (options.gulp !== undefined) {
-			config.gulp = options.gulp;
-		}
-
-		config.dev = !! options.dev;
-
-		sublime.connect();
 
 		return this;
 	},
 
 	/**
-	 * Run a gulp command in Sublime Text.
-	 *
+	 * Send a command to the server.
 	 * @param  {Object} command
 	 * @return {void}
 	 */
 	run: function run(command) {
-		this.emit('run:before');
-
+		const connected = (this._connection !== null && this._connection.connected) ? true : false;
 		const args_id = command.data.args.id;
-		if (typeof args_id === 'string') {
-			command.data.args.id = args_id + '#' + config.PLUGIN_ID;
+		this.emit('run:before', assign({}, command));
+
+		if ( ! connected) {
+			return;
 		}
 
-		sublime._connection.send(command);
+		// Since the IDs are usually used to identify the regions, icons, etc,
+		// IDs are prefixed with the id of the plugin to avoid collisions with
+		// with other gulp files running.
+		if (typeof args_id === 'string') {
+			command.data.args.id = `${args_id}#${pluginConfig.get('pluginID')}`;
+		}
 
-		this.emit('run');
+		this._connection.send(command);
+		this.emit('run', assign({}, command));
 
 		return this;
 	},
 
 	/**
 	 * Set a status message in Sublime
-	 *
 	 * @param  {String} id     The id of the status message
 	 * @param  {String} status The message that will be shown
 	 * @return {void}
@@ -223,29 +279,27 @@ const SublimeProto = {
 		const args = { id, status };
 		const init_args = { views: '<all>' };
 		const command = Command({ name: 'set_status', args, init_args });
-		sublime.run(command);
+		this.run(command);
 
 		return this;
 	},
 
 	/**
 	 * Erase a status message in Sublime Text's status bar
-	 *
 	 * @param  {String} id The id of the status message
 	 */
 	eraseStatus: function eraseStatus(id) {
 		const args = { id };
 		const init_args = { views: '<all>' };
 		const command = Command({ name: 'erase_status', args, init_args });
-		sublime.run(command);
+		this.run(command);
 
 		return this;
 	},
 
 	/**
 	 * Hide the gutters, highlighted text lines, and error status messages
-	 *
-	 * @param  {String} id  The id of the status message to erase
+	 * @param  {String} id The id of the status message to erase
 	 * @return {void}
 	 */
 	eraseErrors: function eraseErrors(id) {
@@ -257,7 +311,7 @@ const SublimeProto = {
 		const args = { id };
 		const init_args = { views: '<all>' };
 		const command = Command({ name: 'erase_errors', args, init_args });
-		sublime.run(command);
+		this.run(command);
 
 		return this;
 	},
@@ -271,59 +325,137 @@ const SublimeProto = {
 	 * - Show an error message in the status bar
 	 * - Scroll to the line where the error occured
 	 *
+	 * The base data needed in the error object is a file name and line number
+	 *
 	 * @param  {String} id   The id to associate with the status message
 	 * @param  {Error}  err  The gulp error object
 	 * @return {void}
 	 */
-	showError: function showError(error, id=currentTask) {
+	showError: function showError(err, id=currentTask) {
 		if (typeof id !== 'string') {
 			let err = new Error('The ID passed is not of type String');
 			throw err;
 		}
 
-		error = normalizeError(error, id);
-
+		const error = normalizeError(err, id);
 		const args = { id, error };
 		const init_args = { views: [error.file] };
 		const command = Command({ name: 'show_error', args, init_args });
-		sublime.run(command);
+		this.run(command);
 
 		return this;
 	},
+
+	onGulpTaskStart: function (task) {
+		this.eraseErrors(task.task);
+	},
 };
 
-
-
-
-// Turn `sublime` into an event emitter
+// Turn sublime into an event emitter
 assign(SublimeProto, EventEmitter.prototype);
-const sublime = Object.create(SublimeProto);
-EventEmitter.call(sublime);
 
 
 
 
-sublime.on('connect', function onSublimeConnect() {
-	const gulp = config.gulp;
+/**
+ * Creates a sublime object
+ * @return {Object} [description]
+ */
+function Sublime(options={}) {
+	const result = Object.create(SublimeProto);
 
-	if (typeof gulp === 'object') {
-		gulp.removeListener('task_start', onGulpTaskStart);
-		gulp.on('task_start', onGulpTaskStart);
+	const settings = Settings({
+		defaults: defaultSettings,
+		validations: {
+			deferConnect: util.isBoolean,
+			disableLogging: util.isBoolean,
+			automaticReconnect: util.isBoolean,
+			reconnectTimeout: Number.isFinite,
+			port: Number.isFinite,
+			maxTries: Number.isFinite,
+		},
+	});
+
+	settings.set(assign({}, options));
+	settings.on('change', onSettingsChange);
+
+	EventEmitter.call(result);
+
+	result.on('connect', onSublimeConnect);
+	result.on('disconnect', onSublimeDisconnect);
+	result.on('receive', onDataReceived);
+
+	result.onGulpTaskStart = result.onGulpTaskStart.bind(result);
+	result.settings = settings;
+	result.log = logger(pluginConfig.get('pluginName'), settings);
+
+	Object.defineProperty(result 'construtor', { value: Sublime });
+
+	return result;
+}
+
+Sublime.prototype = SublimeProto;
+
+
+
+
+
+
+function onSettingsChange(data) {
+	var validations = data.validations;
+	var failedValidationNames = Object.keys(validations)
+		.filter(name => validations[name] === false)
+		.map(name => "'" + name + "'" )
+
+	if (failedValidationNames.length) {
+		console.log('Invalid settings were specified for', failedValidationNames.join(', '))
+	}
+}
+
+/**
+ * Reset the reconnection tries
+ * @return {void}
+ */
+function onSublimeConnect() {
+	this._reconnectTries = 0;
+}
+
+/**
+ * Determine whether or not to reconnect
+ * @return {} [description]
+ */
+function onSublimeDisconnect() {
+	const automaticReconnect = this.settings.get('automaticReconnect');
+
+	if (automaticReconnect && ! this._remainDisconnected) {
+		this._reconnect();
+	}
+}
+
+const receiveLogger = logger('Sublime');
+
+function onDataReceived(data) {
+	if ( ! this.settings.get('disableLogging')) {
+		receiveLogger(data);
 	}
 
-	reconnectTries = 0;
-	sublime.connected = connected = true;
-});
-
-sublime.on('disconnect', function onSublimeDisconnect() {
-	sublime.connected = connected = false;
-
-	if (shouldReconnect) {
-		sublime._reconnect();
+	if (data.handshake) {
+		this._connection.shaken = true;;
 	}
-});
+}
 
 
 
+
+const sublime = Sublime();
+
+/**
+ * Determine whether or not to defer connecting
+ */
+setTimeout(function () {
+	if (sublime.settings.get('deferConnect') === false) {
+		sublime.connect();
+	}
+}, 100);
 
 export default sublime;

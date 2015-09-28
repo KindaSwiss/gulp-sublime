@@ -1,11 +1,4 @@
-
 var gulp = require('gulp');
-
-// Configure sublime 
-require('../../../index').config({ gulp: gulp, dev: true });
+var sublime = require('../../../index').config({ gulp: gulp });
 
 gulp.task('default', ['watch']);
-
-
-
-
